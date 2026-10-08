@@ -37,7 +37,7 @@ ajouterPictos({
 const sur = fn => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message, true); } };
 const quand = t => new Date(t).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
 const pluriel = (n, mot, pl = mot + 's') => `${n} ${n > 1 ? pl : mot}`;
-const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 // L'état du coffre ouvert : en mémoire seulement.
 let coffre = null;          // ce que le serveur garde (chiffré)
@@ -452,7 +452,7 @@ async function detail(id) {
   if (choix === 'partager') return partager(id);
   if (choix === 'supprimer') {
     if (!(await confirmer(`Supprimer ${e.nom} ?`, `Supprimé pour toi${l.partages?.length ? ' et pour ceux avec qui tu le partages' : ''}. Sans retour.`, { danger: true, oui: 'Supprimer' }))) return;
-    await sur(async () => { await api.del(`/api/elements/${id}`); prefs.favoris = prefs.favoris.filter(x => x !== id); await sauverPrefs().catch(() => {}); toast('Supprimé.'); await chargerElements(); rafraichir(); })();
+    await sur(async () => { await api.del(`/api/elements/${id}`); prefs.favoris = prefs.favoris.filter(x => x !== id); await sauverPrefs().catch(() => { /* un favori orphelin est ignoré à l'affichage */ }); toast('Supprimé.'); await chargerElements(); rafraichir(); })();
   }
   if (choix === 'quitter') {
     if (!(await confirmer(`Quitter le partage de ${e.nom} ?`, `Il disparaît de ton coffre ; ${l.proprietaire} le garde.`, { danger: true, oui: 'Quitter' }))) return;
