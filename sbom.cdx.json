@@ -1,0 +1,60 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "name": "sesame",
+      "version": "1.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "@noble/hashes",
+      "version": "2.4.0",
+      "purl": "pkg:npm/%40noble/hashes@2.4.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "5f95da5566480424fb1c76469b923b6505c3c0b1be6c65ee4ab310016fbb66f97cee1d6499cd5907555244972951fa14ac6429e05928c66e6467e32cf9a5be78"
+        }
+      ],
+      "description": "Argon2id servi au navigateur ; fichiers copiés tels que publiés, empreintes dans web/vendor/PROVENANCE"
+    },
+    {
+      "type": "container",
+      "name": "node",
+      "version": "24.21.0-alpine",
+      "purl": "pkg:docker/library/node@sha256%3Aebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1?tag=24.21.0-alpine",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1"
+        }
+      ],
+      "description": "image de base, épinglée par empreinte dans le Dockerfile"
+    },
+    {
+      "type": "library",
+      "name": "socle",
+      "version": "25b09a6",
+      "description": "socle commun embarqué, empreintes dans socle/EMPREINTES"
+    }
+  ]
+}

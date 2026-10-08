@@ -11,3 +11,4 @@ socle/test
 .env.*
 /data
 hub.json
+sbom.cdx.json

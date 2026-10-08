@@ -23,3 +23,17 @@ test('fichiers tiers servis : empreinte conforme à PROVENANCE, licence présent
     assert.ok(licence && fs.existsSync(new URL(licence, dossier)), `licence de ${fichier}`);
   }
 });
+
+test('SBOM : alignée sur PROVENANCE, le Dockerfile, le socle embarqué et la version du service', () => {
+  const lire = f => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  const sbom = JSON.parse(lire('sbom.cdx.json'));
+  const parNom = Object.fromEntries(sbom.components.map(c => [c.name, c]));
+  const prov = lire('web/vendor/PROVENANCE');
+  const integrite = Buffer.from(/paquet\s*:\s*sha512-(\S+)/.exec(prov)[1], 'base64').toString('hex');
+  assert.equal(parNom['@noble/hashes'].hashes[0].content, integrite);
+  assert.ok(prov.includes(`@noble/hashes@${parNom['@noble/hashes'].version}`));
+  const [, etiquette, empreinte] = /NODE_IMAGE=node:([\w.-]+)@sha256:([0-9a-f]{64})/.exec(lire('Dockerfile'));
+  assert.deepEqual([parNom.node.version, parNom.node.hashes[0].content], [etiquette, empreinte]);
+  assert.equal(parNom.socle.version, lire('socle/VERSION').trim());
+  assert.equal(sbom.metadata.component.version, JSON.parse(lire('package.json')).version);
+});
