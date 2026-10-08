@@ -644,6 +644,8 @@ function pageImport() {
     apercu.replaceChildren(h('p', { class: 'hint', text: `${pluriel(liste.length, 'élément lu')} · ${pluriel(liste.length - neufs.length, 'déjà présent')} · ${neufs.length} à importer. Chacun est chiffré ici avant l’envoi.` }), go,
       h('p', { class: 'hint', text: 'Pense à supprimer le fichier d’export en clair de ton disque une fois l’import fait.' }));
   }));
+  // Un export ne prend que ses propres éléments : ceux qu'on lui partage restent chez leur propriétaire.
+  const miens = () => [...elements].filter(([id]) => lignes.get(id)?.via === 'propre').map(([, e]) => e);
   const exportChiffre = sur(async () => {
     const m1 = champ('Mot de passe de l’export', { type: 'password', autocomplete: 'new-password' }, 'Il ouvrira ce fichier à l’import. Différent de ton mot de passe maître, de préférence.');
     const m2 = champ('Le même, une seconde fois', { type: 'password', autocomplete: 'new-password' });
@@ -651,17 +653,17 @@ function pageImport() {
     await dialogue({ titre: 'Export chiffré', contenu: [m1.noeud, m2.noeud, e2], boutons: [{ texte: 'Annuler', classe: 'flat', valeur: null }, { texte: 'Exporter', classe: 'solid', agir: async () => {
       if (m1.input.value !== m2.input.value) { e2.textContent = 'Les deux saisies diffèrent.'; return false; }
       if (C.force(m1.input.value).niveau === 'faible') { e2.textContent = 'Trop faible.'; return false; }
-      fichier(`sesame-${new Date().toISOString().slice(0, 10)}.sesame`, await C.exporterChiffre([...elements.values()], m1.input.value), 'application/json');
+      fichier(`sesame-${new Date().toISOString().slice(0, 10)}.sesame`, await C.exporterChiffre(miens(), m1.input.value), 'application/json');
       return true;
     } }] });
   });
   const exportClair = sur(async () => {
     const m = champ('Mot de passe maître', { type: 'password', autocomplete: 'current-password' });
     const e2 = h('p', { class: 'erreur', role: 'alert' });
-    await dialogue({ titre: 'Export en clair', texte: 'Tous tes mots de passe, lisibles par quiconque ouvre le fichier. Seulement pour passer à un autre gestionnaire — et supprime le fichier aussitôt après.', contenu: [m.noeud, e2],
+    await dialogue({ titre: 'Export en clair', texte: 'Tous tes mots de passe, lisibles par quiconque ouvre le fichier (ceux qu’on te partage n’y sont pas). Seulement pour passer à un autre gestionnaire ; supprime le fichier aussitôt après.', contenu: [m.noeud, e2],
       boutons: [{ texte: 'Annuler', classe: 'flat', valeur: null }, { texte: 'Exporter en clair', classe: 'danger solid', agir: async () => {
         try { await C.deverrouiller(m.input.value, coffre, moi.id); } catch (x) { e2.textContent = x.message; return false; }
-        fichier(`sesame-${new Date().toISOString().slice(0, 10)}-EN-CLAIR.csv`, C.versCsv([...elements.values()]), 'text/csv');
+        fichier(`sesame-${new Date().toISOString().slice(0, 10)}-EN-CLAIR.csv`, C.versCsv(miens()), 'text/csv');
         return true;
       } }] });
   });

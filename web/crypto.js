@@ -280,7 +280,19 @@ export async function importerChiffre(texte, motDePasse) {
   let o;
   try { o = JSON.parse(texte); } catch { throw new Error('Fichier illisible.'); }
   if (o?.format !== 'sesame-export') throw new Error('Ce n’est pas un export de SÉSAME.');
-  try { return JSON.parse(td.decode(await ouvrir(await deriverEnveloppe(motDePasse, o.kdf), o.bloc, AAD.export()))); } catch (e) { throw new Error(/Paramètres/.test(e.message) ? e.message : 'Mot de passe d’export incorrect.'); }
+  let elements;
+  try { elements = JSON.parse(td.decode(await ouvrir(await deriverEnveloppe(motDePasse, o.kdf), o.bloc, AAD.export()))); } catch (e) { throw new Error(/Paramètres/.test(e.message) ? e.message : 'Mot de passe d’export incorrect.'); }
+  if (!Array.isArray(elements)) throw new Error('Export illisible.');
+  return elements.filter(e => e && typeof e === 'object').map(borne);
+}
+
+/** Un élément importé ramené à la forme de SÉSAME : champs connus seulement, en texte, bornés. */
+function borne(e) {
+  const t = (v, n) => String(v ?? '').slice(0, n);
+  return {
+    type: e.type === 'note' ? 'note' : 'acces', nom: t(e.nom, 120) || 'Sans nom', url: t(e.url, 500), identifiant: t(e.identifiant, 300),
+    motDePasse: t(e.motDePasse, 1000), notes: t(e.notes, 20000), totp: t(e.totp, 500), espace: t(e.espace, 60), favori: e.favori === true,
+  };
 }
 
 /** Un entier uniforme dans [0, n) : rejet des valeurs qui biaiseraient le modulo. */
@@ -313,7 +325,7 @@ export function entropie(mdp) {
   if (/[A-Z]/.test(s)) alphabet += 26;
   if (/\d/.test(s)) alphabet += 10;
   if (/[^A-Za-z0-9]/.test(s)) alphabet += 33;
-  // Les répétitions et suites comptent peu : on ne compte que les caractères distincts au-delà de la moitié.
+  // Les répétitions comptent peu : au plus deux positions par caractère distinct.
   const distincts = new Set(s).size;
   const utile = Math.min(s.length, distincts * 2);
   return Math.round(utile * Math.log2(alphabet || 1));
@@ -401,19 +413,20 @@ export function depuisCsv(texte) {
   return lignes.map(l => {
     const type = /note/i.test(lu(l, 'type')) ? 'note' : 'acces';
     const url = lu(l, 'url');
-    let domaine = '';
-    try { domaine = url ? new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(/^www\./, '') : ''; } catch { domaine = ''; }
-    return {
-      type, nom: (lu(l, 'nom') || domaine || 'Sans nom').slice(0, 120), url: url.slice(0, 500), identifiant: lu(l, 'identifiant').slice(0, 300),
-      motDePasse: lu(l, 'motDePasse').slice(0, 1000), notes: lu(l, 'notes').slice(0, 20000), totp: lu(l, 'totp').slice(0, 500),
-      espace: lu(l, 'espace').slice(0, 60), favori: ['1', 'true', 'oui'].includes(lu(l, 'favori').toLowerCase()),
-    };
+    return borne({
+      type, nom: lu(l, 'nom') || domaineDe(url), url, identifiant: lu(l, 'identifiant'), motDePasse: lu(l, 'motDePasse'), notes: lu(l, 'notes'),
+      totp: lu(l, 'totp'), espace: lu(l, 'espace'), favori: ['1', 'true', 'oui'].includes(lu(l, 'favori').toLowerCase()),
+    });
   }).filter(e => e.motDePasse || e.notes || e.identifiant);
 }
-const champCsv = v => (/[",\n\r]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ''));
+const champCsv = v => (/[",\n\r]/.test(String(v ?? '')) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ''));
+// Un tableur exécute une cellule qui commence par = + - @ : les champs descriptifs
+// sont neutralisés par une apostrophe. Le mot de passe et le secret A2F restent
+// exacts, sans quoi l'import ailleurs serait faux.
+const sansFormule = v => (/^[=+\-@\t\r]/.test(String(v ?? '')) ? `'${v}` : v);
 export function versCsv(elements) {
   const entete = ['type', 'name', 'url', 'username', 'password', 'totp', 'notes', 'folder', 'favorite'];
-  return [entete.join(','), ...elements.map(e => [e.type, e.nom, e.url, e.identifiant, e.motDePasse, e.totp, e.notes, e.espace, e.favori ? 1 : 0].map(champCsv).join(','))].join('\r\n');
+  return [entete.join(','), ...elements.map(e => [e.type, sansFormule(e.nom), sansFormule(e.url), sansFormule(e.identifiant), e.motDePasse, e.totp, sansFormule(e.notes), sansFormule(e.espace), e.favori ? 1 : 0].map(champCsv).join(','))].join('\r\n');
 }
 
 /** Le domaine d'une adresse saisie, pour le logo et la recherche ; vide si ce n'en est pas un. */

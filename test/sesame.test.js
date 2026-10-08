@@ -130,6 +130,11 @@ test('générateur, force, A2F (RFC 6238), CSV', async () => {
   assert.equal(l[1].notes, 'ligne 1\nligne 2');
   assert.deepEqual(C.depuisCsv(C.versCsv(l)).map(e => e.motDePasse), ['p,a"ss', ''], 'export puis import : rien ne se perd');
   assert.throws(() => C.depuisCsv('a,b\n1,2'), /Colonnes non reconnues/);
+  // Une formule de tableur dans un champ descriptif est neutralisée ; le mot de passe reste exact.
+  const piege = C.lireCsv(C.versCsv([{ type: 'acces', nom: '=HYPERLINK("https://exemple.org")', identifiant: '@moi', notes: '+1', motDePasse: '=secret' }]))[1];
+  assert.deepEqual([piege[1], piege[3], piege[4], piege[6]], ['\'=HYPERLINK("https://exemple.org")', '\'@moi', '=secret', '\'+1']);
+  assert.equal(C.depuisCsv('name,url,password\nX,www.exemple.org/connexion,p\n')[0].nom, 'X');
+  assert.equal(C.depuisCsv('url,password\nhttps://www.exemple.org/connexion,p\n')[0].nom, 'exemple.org', 'sans nom : le domaine');
 });
 
 test('export chiffré : illisible sans son mot de passe', async () => {
@@ -137,6 +142,11 @@ test('export chiffré : illisible sans son mot de passe', async () => {
   assert.doesNotMatch(f, /Banque|secret-bancaire/);
   assert.equal((await C.importerChiffre(f, 'mot de passe d’export'))[0].nom, 'Banque');
   await assert.rejects(C.importerChiffre(f, 'autre'), /incorrect/);
+  // Un export fabriqué : seuls les champs connus passent, en texte, bornés.
+  const fabrique = await C.exporterChiffre([{ nom: { html: '<img>' }, motDePasse: 'x'.repeat(5000), role: 'admin', type: 'script' }, 'pas un objet', null], 'mot de passe d’export');
+  const [e, ...reste] = await C.importerChiffre(fabrique, 'mot de passe d’export');
+  assert.deepEqual([reste.length, e.type, typeof e.nom, e.motDePasse.length, 'role' in e], [0, 'acces', 'string', 1000, false]);
+  await assert.rejects(C.importerChiffre(await C.exporterChiffre({ pas: 'une liste' }, 'mot de passe d’export'), 'mot de passe d’export'), /illisible/);
 });
 
 test('API : le coffre se crée une fois, la dérivation ne descend pas, rien ne sort sans session', async () => {
