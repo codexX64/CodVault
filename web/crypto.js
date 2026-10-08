@@ -26,31 +26,31 @@ const td = new TextDecoder();
 // déverrouillage suivant.
 export const KDF_DEFAUT = Object.freeze({ algo: 'argon2id', m: 65536, t: 3, p: 4 });
 export const KDF_PLANCHER = Object.freeze({ m: 19456, t: 2, p: 1 });
-export const KDF_PLAFOND = Object.freeze({ m: 262144, t: 10, p: 8 });
+const KDF_PLAFOND = Object.freeze({ m: 262144, t: 10, p: 8 });
 const PARAMS = ['m', 't', 'p'];
 const kdfAdmis = k => k?.algo === 'argon2id' && typeof k.sel === 'string'
   && PARAMS.every(x => Number.isInteger(k[x]) && k[x] >= KDF_PLANCHER[x] && k[x] <= KDF_PLAFOND[x]);
 /** Vrai si l'un des paramètres est sous la cible. */
-export const kdfPlusFaible = (k, cible = KDF_DEFAUT) => PARAMS.some(x => k[x] < cible[x]);
+const kdfPlusFaible = (k, cible = KDF_DEFAUT) => PARAMS.some(x => k[x] < cible[x]);
 const nouveauKdf = (p = KDF_DEFAUT) => ({ algo: 'argon2id', m: p.m, t: p.t, p: p.p, sel: b64u(aleatoire(16)) });
 // Jamais moins que la cible, jamais moins que ce que le coffre avait déjà.
 const auMoins = k => nouveauKdf({ m: Math.max(k.m, KDF_DEFAUT.m), t: Math.max(k.t, KDF_DEFAUT.t), p: Math.max(k.p, KDF_DEFAUT.p) });
-export const VERSION_BLOC = 'v1';
+const VERSION_BLOC = 'v1';
 
-export function b64u(octets) {
+function b64u(octets) {
   const o = octets instanceof Uint8Array ? octets : new Uint8Array(octets);
   let s = '';
   for (let i = 0; i < o.length; i += 0x8000) s += String.fromCharCode(...o.subarray(i, i + 0x8000));
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
-export function deB64u(texte) {
+function deB64u(texte) {
   const s = String(texte).replace(/-/g, '+').replace(/_/g, '/');
   const bin = atob(s + '='.repeat((4 - s.length % 4) % 4));
   const o = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i);
   return o;
 }
-export const aleatoire = n => globalThis.crypto.getRandomValues(new Uint8Array(n));
+const aleatoire = n => globalThis.crypto.getRandomValues(new Uint8Array(n));
 const effacer = o => { if (o instanceof Uint8Array) o.fill(0); };
 
 const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -63,7 +63,7 @@ export function base32(octets) {
   if (bits > 0) out += BASE32[(valeur << (5 - bits)) & 31];
   return out;
 }
-export function deBase32(texte) {
+function deBase32(texte) {
   const s = String(texte).toUpperCase().replace(/[\s=-]/g, '');
   if (!/^[A-Z2-7]+$/.test(s)) throw new Error('Clé en base 32 invalide.');
   let bits = 0, valeur = 0;
@@ -83,7 +83,7 @@ async function hkdf(secret, info, usages = ['encrypt', 'decrypt']) {
   return subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: te.encode('sesame/hkdf/v1'), info: te.encode(info) }, base, { name: 'AES-GCM', length: 256 }, false, usages);
 }
 /** Bloc « v1.<iv>.<chiffré> » : AES-256-GCM, IV aléatoire de 96 bits, données associées obligatoires. */
-export async function sceller(cle, clair, aad) {
+async function sceller(cle, clair, aad) {
   const iv = aleatoire(12);
   const ct = await subtle.encrypt({ name: 'AES-GCM', iv, additionalData: te.encode(aad), tagLength: 128 }, cle, clair);
   return `${VERSION_BLOC}.${b64u(iv)}.${b64u(ct)}`;
@@ -109,7 +109,7 @@ const AAD = {
 };
 
 /** Le mot de passe maître étiré par Argon2id, puis HKDF vers la clé d'enveloppe. */
-export async function deriverEnveloppe(motDePasse, kdf) {
+async function deriverEnveloppe(motDePasse, kdf) {
   if (!kdfAdmis(kdf)) throw new Error('Paramètres de dérivation refusés.');
   const mdp = te.encode(String(motDePasse).normalize('NFKC'));
   // asyncTick : la main revient au navigateur toutes les 10 ms, la page reste vivante pendant le calcul.
@@ -118,7 +118,7 @@ export async function deriverEnveloppe(motDePasse, kdf) {
 }
 
 /** La clé de récupération telle qu'on l'imprime : 32 octets en base 32, par groupes de quatre. */
-export const formaterRecuperation = octets => base32(octets).match(/.{1,4}/g).join('-');
+const formaterRecuperation = octets => base32(octets).match(/.{1,4}/g).join('-');
 const enveloppeRecuperation = async texte => {
   // Recopiée à la main : 0, 1 et 8 n'existent pas en base 32, c'est O, I et B mal lus.
   const o = deBase32(String(texte).toUpperCase().replace(/0/g, 'O').replace(/1/g, 'I').replace(/8/g, 'B'));
@@ -296,12 +296,12 @@ function borne(e) {
 }
 
 /** Un entier uniforme dans [0, n) : rejet des valeurs qui biaiseraient le modulo. */
-export function uniforme(n) {
+function uniforme(n) {
   const a = new Uint32Array(1), limite = Math.floor(0x100000000 / n) * n;
   do globalThis.crypto.getRandomValues(a); while (a[0] >= limite);
   return a[0] % n;
 }
-export const JEUX = { majuscules: 'ABCDEFGHJKLMNPQRSTUVWXYZ', minuscules: 'abcdefghijkmnopqrstuvwxyz', chiffres: '23456789', symboles: '!#$%&*+-=?@^_~' };
+const JEUX = { majuscules: 'ABCDEFGHJKLMNPQRSTUVWXYZ', minuscules: 'abcdefghijkmnopqrstuvwxyz', chiffres: '23456789', symboles: '!#$%&*+-=?@^_~' };
 const JEUX_COMPLETS = { majuscules: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', minuscules: 'abcdefghijklmnopqrstuvwxyz', chiffres: '0123456789', symboles: '!#$%&*+-=?@^_~' };
 /** Au moins un caractère de chaque jeu choisi, puis mélange de Fisher-Yates. */
 export function generer({ longueur = 20, majuscules = true, minuscules = true, chiffres = true, symboles = true, ambigus = false } = {}) {
@@ -317,7 +317,7 @@ export function generer({ longueur = 20, majuscules = true, minuscules = true, c
 }
 
 /** Entropie estimée (bits) d'après les familles de caractères présentes : un indicateur, pas une garantie. */
-export function entropie(mdp) {
+function entropie(mdp) {
   const s = String(mdp || '');
   if (!s) return 0;
   let alphabet = 0;
@@ -330,7 +330,7 @@ export function entropie(mdp) {
   const utile = Math.min(s.length, distincts * 2);
   return Math.round(utile * Math.log2(alphabet || 1));
 }
-export const COMMUNS = new Set(['123456', '123456789', '12345678', 'password', 'motdepasse', 'azerty', 'azertyuiop', 'qwerty', '111111', '000000', 'iloveyou', 'admin', 'soleil', 'doudou', 'loulou', 'chouchou', 'bonjour', 'password1', 'azerty123']);
+const COMMUNS = new Set(['123456', '123456789', '12345678', 'password', 'motdepasse', 'azerty', 'azertyuiop', 'qwerty', '111111', '000000', 'iloveyou', 'admin', 'soleil', 'doudou', 'loulou', 'chouchou', 'bonjour', 'password1', 'azerty123']);
 export function force(mdp) {
   const s = String(mdp || '');
   if (!s) return { niveau: 'vide', bits: 0 };
