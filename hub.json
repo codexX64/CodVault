@@ -1,0 +1,264 @@
+{
+  "$schema": "https://raw.githubusercontent.com/CodexX64/hub-registry/main/schema/hub-extension.v1.json",
+  "manifestVersion": 1,
+  "id": "sesame",
+  "name": "SÉSAME",
+  "version": "1.0.0",
+  "description": "Mots de passe à connaissance nulle : coffre chiffré dans le navigateur, codes A2F, notes, import, partage chiffré entre comptes.",
+  "icon": "key",
+  "repository": "https://github.com/CodexX64/sesame",
+  "license": "MIT",
+  "minHubVersion": "0.9.13",
+  "install": {
+    "type": "compose",
+    "compose": "deploy/compose.hub.yml",
+    "healthcheck": {
+      "type": "http",
+      "path": "/api/health",
+      "expect": 200,
+      "timeout": "5s"
+    },
+    "arch": [
+      "amd64",
+      "arm64"
+    ],
+    "resources": {
+      "ramMb": 256,
+      "cpu": 1,
+      "diskMb": 512
+    },
+    "ports": [
+      {
+        "name": "http",
+        "container": 8175,
+        "protocol": "http",
+        "expose": "proxy"
+      }
+    ],
+    "volumes": [
+      {
+        "name": "data",
+        "path": "/data"
+      }
+    ]
+  },
+  "config": [
+    {
+      "key": "IMAGE_TAG",
+      "label": "Version de l'image",
+      "type": "string",
+      "default": "1.0.0",
+      "help": "Étiquette de l'image sesame.",
+      "advanced": true
+    },
+    {
+      "key": "SESAME_LOGOS",
+      "label": "Logos des sites",
+      "type": "select",
+      "default": "oui",
+      "options": [
+        {
+          "value": "oui",
+          "label": "Récupérés par SÉSAME — aucun service tiers"
+        },
+        {
+          "value": "non",
+          "label": "Aucun — les initiales seules, aucune requête sortante"
+        }
+      ],
+      "help": "SÉSAME va chercher l'icône sur le site lui-même et la garde en cache. Le serveur apprend ainsi les domaines (jamais à quel compte ils appartiennent)."
+    },
+    {
+      "key": "HUB_ADMIN_TOKEN",
+      "label": "Jeton d'administration des comptes",
+      "type": "secret",
+      "generate": "random:48",
+      "advanced": true,
+      "help": "Généré par le Hub, distinct du jeton du Hub : il ne sert qu'à gérer les comptes de SÉSAME depuis Comptes des services."
+    },
+    {
+      "key": "SOCLE_HTTP",
+      "label": "Accès sans HTTPS",
+      "type": "select",
+      "default": "0",
+      "required": true,
+      "options": [
+        {
+          "value": "0",
+          "label": "Non — l'interface de VIGIE est servie en HTTPS (par Relay)"
+        },
+        {
+          "value": "1",
+          "label": "Oui — réseau de confiance, mode dégradé"
+        }
+      ],
+      "help": "Les clés d'accès n'existent qu'en HTTPS. En mode dégradé, l'administrateur se connecte avec mot de passe et application d'authentification, et SÉSAME l'affiche partout.",
+      "advanced": true
+    },
+    {
+      "key": "SOCLE_CLE",
+      "label": "Clé maîtresse",
+      "type": "secret",
+      "generate": "random:32",
+      "help": "Scelle la clé d'IA en nuage, les jetons docker-control et Telegram, la clé de billetterie et les secrets TOTP. Créée par le Hub, gardée dans son coffre, jamais sur le volume de SÉSAME."
+    },
+    {
+      "key": "SOCLE_CLE_ANCIENNE",
+      "label": "Clé maîtresse remplacée",
+      "type": "secret",
+      "advanced": true,
+      "help": "Pendant une rotation seulement : la clé actuelle ici, une neuve dans « Clé maîtresse », redéployer, puis vider ce champ."
+    },
+    {
+      "key": "SOCLE_JETON_INSTALLATION",
+      "label": "Jeton d'installation",
+      "type": "secret",
+      "advanced": true,
+      "help": "Vide : SÉSAME en tire un au premier démarrage et l'écrit dans ses journaux. Il ne sert qu'à créer le premier compte."
+    },
+    {
+      "key": "SOCLE_PROXYS",
+      "label": "Relais de confiance",
+      "type": "string",
+      "default": "",
+      "advanced": true,
+      "help": "Plages (CIDR) des relais inverses autorisés à transmettre l'adresse du client. Vide : l'adresse vue est celle de la connexion."
+    },
+    {
+      "key": "SOCLE_ORIGINES",
+      "label": "Origines supplémentaires",
+      "type": "string",
+      "default": "",
+      "advanced": true,
+      "help": "Adresses complètes acceptées en plus de celle de la page, quand un relais réécrit l'hôte."
+    },
+    {
+      "key": "SOCLE_URL_PUBLIQUE",
+      "label": "Adresse publique (courriels)",
+      "type": "string",
+      "default": "",
+      "advanced": true,
+      "help": "Ex. https://vigie.exemple. Les liens des courriels et des tickets en partent."
+    },
+    {
+      "key": "SOCLE_SMTP_HOTE",
+      "label": "Relais SMTP",
+      "type": "string",
+      "default": "",
+      "advanced": true,
+      "help": "Vide : les alertes de sécurité des comptes restent visibles dans SÉSAME, sans courriel."
+    },
+    {
+      "key": "SOCLE_SMTP_PORT",
+      "label": "Port SMTP",
+      "type": "number",
+      "min": 1,
+      "advanced": true,
+      "help": "Vide : 465 en TLS, 587 en STARTTLS."
+    },
+    {
+      "key": "SOCLE_SMTP_SECURITE",
+      "label": "Chiffrement SMTP",
+      "type": "select",
+      "default": "tls",
+      "advanced": true,
+      "options": [
+        {
+          "value": "tls",
+          "label": "TLS dès la connexion (465)"
+        },
+        {
+          "value": "starttls",
+          "label": "STARTTLS exigé (587)"
+        }
+      ]
+    },
+    {
+      "key": "SOCLE_SMTP_UTILISATEUR",
+      "label": "Identifiant SMTP",
+      "type": "string",
+      "default": "",
+      "advanced": true
+    },
+    {
+      "key": "SOCLE_SMTP_MOTDEPASSE",
+      "label": "Mot de passe SMTP",
+      "type": "secret",
+      "advanced": true
+    },
+    {
+      "key": "SOCLE_SMTP_DE",
+      "label": "Adresse d'expédition",
+      "type": "string",
+      "default": "",
+      "advanced": true
+    }
+  ],
+  "capabilities": {
+    "provides": [],
+    "requires": [],
+    "accepts": []
+  },
+  "triggers": [],
+  "actions": [],
+  "probes": [],
+  "permissions": {
+    "dockerSocket": "none",
+    "privileged": false,
+    "hostNetwork": false,
+    "capAdd": [],
+    "egress": [
+      "*:443 (logos des sites, si activés)"
+    ]
+  },
+  "ai": {
+    "exposeActions": false,
+    "hints": "SÉSAME garde des mots de passe chiffrés de bout en bout : ni le Hub ni son assistant ne peuvent les lire, et SÉSAME n'expose aucune action. Pour un mot de passe, l'utilisateur ouvre SÉSAME lui-même."
+  },
+  "accounts": {
+    "tokenKey": "HUB_ADMIN_TOKEN",
+    "roles": [
+      "admin",
+      "membre",
+      "lecture"
+    ],
+    "adminRole": "admin",
+    "invitation": true,
+    "fields": {
+      "id": "$.id",
+      "name": "$.identifiant",
+      "role": "$.role",
+      "mfa": "$.a2f",
+      "created": "$.cree",
+      "lastSeen": "$.derniere"
+    },
+    "list": {
+      "method": "GET",
+      "path": "/api/compte/hub/comptes"
+    },
+    "create": {
+      "method": "POST",
+      "path": "/api/compte/hub/comptes",
+      "body": {
+        "identifiant": "{{params.username}}",
+        "role": "{{params.role}}"
+      }
+    },
+    "update": {
+      "method": "PATCH",
+      "path": "/api/compte/hub/comptes/{{params.id}}",
+      "body": {
+        "role": "{{params.role}}"
+      }
+    },
+    "reset": {
+      "method": "POST",
+      "path": "/api/compte/hub/comptes/{{params.id}}/reinit",
+      "body": {}
+    },
+    "remove": {
+      "method": "DELETE",
+      "path": "/api/compte/hub/comptes/{{params.id}}"
+    }
+  }
+}

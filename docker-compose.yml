@@ -1,0 +1,25 @@
+# SÉSAME seul, sans le Hub : docker compose up -d --build
+# Le jeton d'installation du premier compte s'affiche dans
+# « docker compose logs sesame ». À servir en HTTPS (relais ou SOCLE_HTTP non) :
+# le navigateur n'ouvre WebCrypto et les clés d'accès que dans un contexte sûr.
+name: sesame
+
+services:
+  sesame:
+    build: .
+    image: ghcr.io/codexx64/sesame:1.0.0
+    container_name: sesame
+    restart: unless-stopped
+    ports: ["127.0.0.1:8175:8175"]
+    volumes: [sesame-data:/data]
+    env_file: [.env]
+    read_only: true
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    cpus: 1.0
+    pids_limit: 96
+
+volumes:
+  sesame-data:
