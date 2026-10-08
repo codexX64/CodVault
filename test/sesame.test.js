@@ -166,8 +166,10 @@ test('API : le coffre se crée une fois, la dérivation ne descend pas, rien ne 
   assert.equal(lu.etat, 'pret');
   assert.equal(lu.recuperation, undefined, 'l’enveloppe de récupération ne sort que sous renfort');
   // Le serveur ne garde que du chiffré : ni le mot de passe maître, ni la clé de récupération.
-  const base = fs.readFileSync(path.join(tmp, 'data', 'sesame.db')).toString('latin1');
-  assert.ok(!base.includes(MAITRE) && !base.includes(n.recuperation));
+  // Les écritures récentes sont dans le journal WAL : les deux fichiers sont lus, et comparés en octets UTF-8.
+  const base = Buffer.concat(['sesame.db', 'sesame.db-wal'].map(f => fs.readFileSync(path.join(tmp, 'data', f))));
+  for (const clair of [MAITRE, n.recuperation, n.recuperation.replace(/-/g, '')]) assert.ok(!base.includes(Buffer.from(clair)), clair.slice(0, 12));
+  assert.ok(Buffer.concat([base, Buffer.from(MAITRE)]).includes(Buffer.from(MAITRE)), 'la recherche elle-même trouve un clair présent');
 });
 
 test('API : éléments — propriétaire seul, versions, plafonds ; le serveur ne lit rien', async () => {
