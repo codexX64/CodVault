@@ -490,6 +490,12 @@ test('clé du coffre renouvelée : tout rechiffré d’un coup, l’ancienne cl�
   assert.equal((await rot.put('/api/coffre/cle', { ...r.publique, elements: r.publique.elements.slice(1) })).status, 409, 'un élément manquant');
   assert.equal((await rot.put('/api/coffre/cle', { ...r.publique, elements: r.publique.elements.map(e => ({ ...e, partages: [] })) })).status, 409, 'un partage oublié');
   assert.equal((await rot.put('/api/coffre/cle', { ...r.publique, elements: r.publique.elements.map(e => ({ ...e, version: e.version + 1 })) })).status, 409, 'un élément modifié entre-temps');
+  assert.equal((await rot.put('/api/coffre/cle', { ...r.publique, elements: [...r.publique.elements, r.publique.elements[0]] })).status, 409, 'un élément en double');
+  const aLeo = await C.chiffrerNouveau(sLeo, { nom: 'à leo' });
+  ok(await membre.post('/api/elements', aLeo));
+  const autre = ok(await membre.get('/api/elements')).elements.find(x => x.id === aLeo.id);
+  assert.equal((await rot.put('/api/coffre/cle', { ...r.publique, elements: [...r.publique.elements, { ...r.publique.elements[0], id: autre.id, version: autre.version, partages: [] }] })).status, 409, 'l’élément d’un autre compte glissé dans l’envoi');
+  assert.equal(ok(await membre.get('/api/elements')).elements.find(x => x.id === autre.id).chiffre, autre.chiffre, 'l’élément de l’autre compte intact');
   assert.equal((await rot.put('/api/coffre/cle', { ...r.publique, kdf: { ...r.publique.kdf, m: 19456 } })).status, 400, 'dérivation affaiblie');
   assert.equal((await membre.put('/api/coffre/cle', r.publique)).status, 409, 'pas sur le coffre d’un autre');
   assert.equal(codvault.db.prepare('SELECT version FROM coffres WHERE compte = ?').get(compte).version, coffre.version, 'rien n’a bougé après les refus');
