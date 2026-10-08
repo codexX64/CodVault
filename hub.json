@@ -66,7 +66,7 @@
           "label": "Aucun — les initiales seules, aucune requête sortante"
         }
       ],
-      "help": "SÉSAME va chercher l'icône sur le site lui-même et la garde en cache. Le serveur apprend ainsi les domaines (jamais à quel compte ils appartiennent)."
+      "help": "SÉSAME va chercher l'icône sur le site lui-même, la réencode et la garde en cache. Le serveur voit ainsi les domaines dont un logo est demandé ; il ne les note nulle part."
     },
     {
       "key": "HUB_ADMIN_TOKEN",
@@ -85,14 +85,14 @@
       "options": [
         {
           "value": "0",
-          "label": "Non — l'interface de VIGIE est servie en HTTPS (par Relay)"
+          "label": "Non — SÉSAME est servi en HTTPS (relais ou tunnel)"
         },
         {
           "value": "1",
-          "label": "Oui — réseau de confiance, mode dégradé"
+          "label": "Oui — mode dégradé : le coffre ne s'ouvre alors que sur localhost"
         }
       ],
-      "help": "Les clés d'accès n'existent qu'en HTTPS. En mode dégradé, l'administrateur se connecte avec mot de passe et application d'authentification, et SÉSAME l'affiche partout.",
+      "help": "Le navigateur ne chiffre qu'en HTTPS (ou sur localhost) : sans HTTPS, ni le coffre ni les clés d'accès ne fonctionnent. Le mode dégradé ne sert qu'à administrer les comptes en attendant un relais.",
       "advanced": true
     },
     {
@@ -100,7 +100,7 @@
       "label": "Clé maîtresse",
       "type": "secret",
       "generate": "random:32",
-      "help": "Scelle la clé d'IA en nuage, les jetons docker-control et Telegram, la clé de billetterie et les secrets TOTP. Créée par le Hub, gardée dans son coffre, jamais sur le volume de SÉSAME."
+      "help": "Scelle les secrets TOTP des comptes (les coffres, eux, sont chiffrés dans le navigateur). Créée par le Hub, gardée dans son coffre, jamais sur le volume de SÉSAME."
     },
     {
       "key": "SOCLE_CLE_ANCIENNE",
@@ -138,7 +138,7 @@
       "type": "string",
       "default": "",
       "advanced": true,
-      "help": "Ex. https://vigie.exemple. Les liens des courriels et des tickets en partent."
+      "help": "Ex. https://sesame.exemple. Les liens des courriels en partent."
     },
     {
       "key": "SOCLE_SMTP_HOTE",
