@@ -1,10 +1,10 @@
-# SÉSAME installé par le Hub. Les {{...}} sont remplacés à l'installation :
+# CODVAULT installé par le Hub. Les {{...}} sont remplacés à l'installation :
 # secrets générés, port d'hôte, volume nommé, réseau partagé du Hub. Aucune
 # capacité, aucun jeton de service : le Hub administre les comptes (jeton
 # d'administration délégué au socle) et ne voit jamais le contenu des coffres.
 services:
-  sesame:
-    image: ghcr.io/codexx64/sesame:{{config.IMAGE_TAG}}
+  codvault:
+    image: ghcr.io/codexx64/codvault:{{config.IMAGE_TAG}}
     container_name: {{service.host}}
     restart: unless-stopped
     networks: [hub]
@@ -28,7 +28,7 @@ services:
     environment:
       DATA_DIR: /data
       PORT: "8175"
-      SESAME_LOGOS: "{{config.SESAME_LOGOS}}"
+      CODVAULT_LOGOS: "{{config.CODVAULT_LOGOS}}"
       # Comptes : clé maîtresse gardée par le Hub (jamais sur le volume).
       SOCLE_CLE: "{{config.SOCLE_CLE}}"
       SOCLE_CLE_ANCIENNE: "{{config.SOCLE_CLE_ANCIENNE}}"

@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
-# SÉSAME : Node seul, aucune dépendance d'exécution (node:sqlite, Argon2id,
+# CODVAULT : Node seul, aucune dépendance d'exécution (node:sqlite, Argon2id,
 # TLS et zlib sont dans le moteur). Image de base épinglée par empreinte
 # (index multi-architecture amd64 + arm64) : une étiquette peut être déplacée,
 # une empreinte non.
 ARG NODE_IMAGE=node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
 FROM ${NODE_IMAGE}
 RUN apk add --no-cache tini \
- && addgroup -S -g 10005 sesame && adduser -S -G sesame -u 10005 -H -s /sbin/nologin sesame \
- && mkdir -p /data && chown sesame:sesame /data && chmod 700 /data \
+ && addgroup -S -g 10005 codvault && adduser -S -G codvault -u 10005 -H -s /sbin/nologin codvault \
+ && mkdir -p /data && chown codvault:codvault /data && chmod 700 /data \
  # Aucun programme setuid ou setgid : personne ne redevient root.
  && find / -xdev -perm /6000 -type f -exec chmod a-s {} +
 WORKDIR /app
@@ -15,7 +15,7 @@ COPY package.json ./
 COPY socle ./socle
 COPY src ./src
 COPY web ./web
-USER sesame
+USER codvault
 ENV NODE_ENV=production DATA_DIR=/data PORT=8175
 EXPOSE 8175
 VOLUME ["/data"]

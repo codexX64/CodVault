@@ -1,4 +1,4 @@
-// Exercice de rotation de bout en bout (REQ-CFG-005) : SÉSAME lancé comme en
+// Exercice de rotation de bout en bout (REQ-CFG-005) : CODVAULT lancé comme en
 // production, clé maîtresse lue dans un fichier (_FILE), un compte avec TOTP,
 // clé d'accès et codes de secours ; puis SOCLE_CLE tournée comme le dit le
 // README, et tout ce qui existait revérifié. Dure un peu plus de trente
@@ -30,7 +30,7 @@ async function demarrer() {
   proc = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', 'src/main.js'], { cwd: RACINE, env: {
     PATH: process.env.PATH, PORT: String(PORT), HOTE: '127.0.0.1', DATA_DIR: path.join(D, 'data'),
     SOCLE_CLE_FILE: path.join(S, 'socle_cle'), SOCLE_CLE_ANCIENNE_FILE: path.join(S, 'socle_cle_ancienne'),
-    SOCLE_JETON_INSTALLATION: JETON, SESAME_LOGOS: 'non',
+    SOCLE_JETON_INSTALLATION: JETON, CODVAULT_LOGOS: 'non',
   } });
   proc.stdout.on('data', d => { sortie += d; }); proc.stderr.on('data', d => { sortie += d; });
   const fin = new Promise(r => proc.on('exit', c => r({ code: c })));

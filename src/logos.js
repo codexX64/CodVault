@@ -98,7 +98,7 @@ export class Logos {
       const req = this.requete({
         host: u.hostname, servername: u.hostname, port: 443, path: u.pathname + u.search, method: 'GET',
         lookup: (_h, _o, cb) => (_o?.all ? cb(null, [ip]) : cb(null, ip.address, ip.family)),
-        headers: { 'user-agent': 'SESAME-logos/1.0', accept: 'image/*,text/html;q=0.8', 'accept-encoding': 'identity' },
+        headers: { 'user-agent': 'CODVAULT-logos/1.0', accept: 'image/*,text/html;q=0.8', 'accept-encoding': 'identity' },
         timeout: DELAI,
       }, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) { res.resume(); return ok({ redirection: new URL(res.headers.location, u).href }); }

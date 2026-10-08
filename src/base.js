@@ -1,4 +1,4 @@
-// Base de SÉSAME. Elle ne contient que du chiffré : les coffres (clé du coffre
+// Base de CODVAULT. Elle ne contient que du chiffré : les coffres (clé du coffre
 // enveloppée par le mot de passe maître et par la clé de récupération, clé
 // privée chiffrée, clé publique), les éléments (chacun chiffré par sa propre
 // clé, enveloppée pour son propriétaire), les partages (la clé de l'élément
@@ -10,7 +10,7 @@ import path from 'node:path';
 
 export function ouvrirBase(dossier) {
   fs.mkdirSync(dossier, { recursive: true, mode: 0o700 });
-  const fichier = path.join(dossier, 'sesame.db');
+  const fichier = path.join(dossier, 'codvault.db');
   fs.closeSync(fs.openSync(fichier, 'a', 0o600));
   for (const f of [fichier, fichier + '-wal', fichier + '-shm']) if (fs.existsSync(f)) fs.chmodSync(f, 0o600);
   const db = new DatabaseSync(fichier);

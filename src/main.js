@@ -1,10 +1,10 @@
-// Démarrage de SÉSAME : configuration validée, base, socle commun (comptes,
+// Démarrage de CODVAULT : configuration validée, base, socle commun (comptes,
 // sessions, journal, administration par le Hub), logos, et serveur HTTP de
 // l'interface et de l'API. Rien d'autre ne tourne : aucun appel sortant hors
 // des logos, aucune IA, aucun jeton de service.
 import http from 'node:http';
 import path from 'node:path';
-import { lireConfigSesame, VERSION } from './config.js';
+import { lireConfigCodvault, VERSION } from './config.js';
 import { ouvrirBase } from './base.js';
 import { Logos } from './logos.js';
 import { creerApi } from './api.js';
@@ -15,19 +15,19 @@ import {
 
 const RACINE = path.resolve(import.meta.dirname, '..');
 const CONSOLE = { info: (...a) => console.log(...a), warn: (...a) => console.warn(...a), error: (...a) => console.error(...a) };
-const CONTACT_SECURITE = 'https://github.com/CodexX64/sesame/security/advisories/new';
+const CONTACT_SECURITE = 'https://github.com/CodexX64/codvault/security/advisories/new';
 
 export async function demarrer(env = process.env, { log = CONSOLE, logos: optionsLogos = {} } = {}) {
-  const cfg = lireConfigSesame(env);
+  const cfg = lireConfigCodvault(env);
   const db = ouvrirBase(cfg.donnees);
-  const socle = await demarrerSocle({ service: { id: 'sesame', nom: 'SÉSAME', contactSecurite: CONTACT_SECURITE }, db, dossier: cfg.donnees, env, log });
+  const socle = await demarrerSocle({ service: { id: 'codvault', nom: 'CODVAULT', contactSecurite: CONTACT_SECURITE }, db, dossier: cfg.donnees, env, log });
   const logos = new Logos({ db, actif: cfg.logos === 'oui', log, ...optionsLogos });
   const api = creerApi({ socle, db, logos, cfg });
 
   const debit = new Debit({ max: 900 });
   const serveur = http.createServer(envelopper(async (req, res) => {
     try {
-      const url = new URL(req.url, 'http://sesame');
+      const url = new URL(req.url, 'http://codvault');
       const ctx = socle.portail.contexte(req, res);
       if (!debit.prendre(ctx.ip)) throw new ErreurHttp(429, 'Trop de requêtes.');
       ctx.url = url;
@@ -47,7 +47,7 @@ export async function demarrer(env = process.env, { log = CONSOLE, logos: option
   serveur.requestTimeout = 120_000;
   serveur.keepAliveTimeout = 5_000;
   await new Promise(r => serveur.listen(cfg.port, cfg.hote, r));
-  log.info?.(`SÉSAME ${VERSION} à l’écoute sur ${cfg.hote}:${serveur.address().port}`);
+  log.info?.(`CODVAULT ${VERSION} à l’écoute sur ${cfg.hote}:${serveur.address().port}`);
 
   return {
     serveur, db, socle, logos, api, port: serveur.address().port,

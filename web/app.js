@@ -1,4 +1,4 @@
-// Interface de SÉSAME. La porte du socle connecte le compte ; puis le coffre
+// Interface de CODVAULT. La porte du socle connecte le compte ; puis le coffre
 // se déverrouille ICI, avec le mot de passe maître, qui ne quitte jamais la
 // page. Tout ce qui part au serveur est chiffré par web/crypto.js ; tout ce
 // qui s'affiche a été déchiffré dans ce navigateur.
@@ -11,7 +11,7 @@ import {
 import * as C from '/crypto.js';
 
 appliquerTheme();
-const SERVICE = 'SÉSAME';
+const SERVICE = 'CODVAULT';
 const api = new Api({ surDeconnexion: () => location.reload() });
 
 ajouterPictos({
@@ -36,7 +36,7 @@ if (!globalThis.isSecureContext || !globalThis.crypto?.subtle) {
     h('div', { class: 'wiz' },
       h('div', { class: 'whead' }, h('div', { class: 'brand' }, h('div', { class: 'g' }, icone('coffre', 18)), h('div', {}, h('b', { text: SERVICE })))),
       h('div', { class: 'wbody' }, h('h1', { text: 'HTTPS demandé' }),
-        h('p', { class: 'sub', text: 'Le navigateur ne chiffre qu’en HTTPS, ou sur localhost : ouvre SÉSAME par son adresse en https://, celle du relais ou celle que le Hub publie.' })))));
+        h('p', { class: 'sub', text: 'Le navigateur ne chiffre qu’en HTTPS, ou sur localhost : ouvre CODVAULT par son adresse en https://, celle du relais ou celle que le Hub publie.' })))));
   await new Promise(() => {});
 }
 const etatPorte = await porte({ api, service: SERVICE, sousTitre: 'coffre de mots de passe' });
@@ -132,7 +132,7 @@ function montrerRecuperation(texte, titre, sous) {
       h('div', { class: 'recup mono', text: texte }),
       h('div', { class: 'actions' },
         h('button', { class: 'btn sm', type: 'button', onclick: () => copier(texte, 'Clé copiée', 120) }, icone('copie', 14), 'Copier'),
-        h('button', { class: 'btn sm', type: 'button', onclick: () => fichier(`sesame-recuperation-${moi.identifiant}.txt`, `SÉSAME — clé de récupération du compte ${moi.identifiant}\n\n${texte}\n\nElle rouvre le coffre si le mot de passe maître est oublié. Garde-la hors ligne.\n`, 'text/plain') }, icone('telecharge', 14), 'Télécharger')),
+        h('button', { class: 'btn sm', type: 'button', onclick: () => fichier(`codvault-recuperation-${moi.identifiant}.txt`, `CODVAULT — clé de récupération du compte ${moi.identifiant}\n\n${texte}\n\nElle rouvre le coffre si le mot de passe maître est oublié. Garde-la hors ligne.\n`, 'text/plain') }, icone('telecharge', 14), 'Télécharger')),
       verif.noeud, err], [go]);
   });
 }
@@ -538,7 +538,7 @@ async function partager(id) {
       await chargerElements(); rafraichir();
     }) }, 'Retirer'))));
   if (!destinataires.length) {
-    return dialogue({ titre: `Partager ${e.nom}`, texte: 'Aucun autre compte n’a encore créé son coffre : il faut qu’il se connecte une fois à SÉSAME pour recevoir un partage.', contenu: [existants], boutons: [{ texte: 'Fermer', classe: 'solid', valeur: null }] });
+    return dialogue({ titre: `Partager ${e.nom}`, texte: 'Aucun autre compte n’a encore créé son coffre : il faut qu’il se connecte une fois à CODVAULT pour recevoir un partage.', contenu: [existants], boutons: [{ texte: 'Fermer', classe: 'solid', valeur: null }] });
   }
   const qui = h('select', { class: 'field', 'aria-label': 'Destinataire' }, destinataires.map(d => h('option', { value: d.id, text: d.identifiant })));
   const droits = h('select', { class: 'field', 'aria-label': 'Droits' }, h('option', { value: 'lecture', text: 'Lecture seule' }), h('option', { value: 'ecriture', text: 'Peut modifier' }));
@@ -631,7 +631,7 @@ function pageCodes() {
 function pageImport() {
   const err = h('p', { class: 'erreur', role: 'alert' });
   const apercu = h('div', {});
-  const entree = h('input', { type: 'file', accept: '.csv,.sesame,.json,text/csv,application/json', class: 'field', 'aria-label': 'Fichier à importer' });
+  const entree = h('input', { type: 'file', accept: '.csv,.codvault,.json,text/csv,application/json', class: 'field', 'aria-label': 'Fichier à importer' });
   entree.addEventListener('change', sur(async () => {
     err.textContent = ''; apercu.replaceChildren();
     const f = entree.files?.[0];
@@ -641,7 +641,7 @@ function pageImport() {
     let liste;
     if (/^\s*\{/.test(texte)) {
       const mdp = champ('Mot de passe de l’export', { type: 'password', autocomplete: 'off' });
-      const ok = await dialogue({ titre: 'Export de SÉSAME', texte: 'Ce fichier est chiffré : tape le mot de passe choisi à l’export.', contenu: [mdp.noeud], boutons: [{ texte: 'Annuler', classe: 'flat', valeur: false }, { texte: 'Ouvrir', classe: 'solid', valeur: true }] });
+      const ok = await dialogue({ titre: 'Export de CODVAULT', texte: 'Ce fichier est chiffré : tape le mot de passe choisi à l’export.', contenu: [mdp.noeud], boutons: [{ texte: 'Annuler', classe: 'flat', valeur: false }, { texte: 'Ouvrir', classe: 'solid', valeur: true }] });
       if (!ok) return;
       liste = await C.importerChiffre(texte, mdp.input.value);
     } else liste = C.depuisCsv(texte);
@@ -670,7 +670,7 @@ function pageImport() {
     await dialogue({ titre: 'Export chiffré', contenu: [m1.noeud, m2.noeud, e2], boutons: [{ texte: 'Annuler', classe: 'flat', valeur: null }, { texte: 'Exporter', classe: 'solid', agir: async () => {
       if (m1.input.value !== m2.input.value) { e2.textContent = 'Les deux saisies diffèrent.'; return false; }
       if (C.force(m1.input.value).niveau === 'faible') { e2.textContent = 'Trop faible.'; return false; }
-      fichier(`sesame-${new Date().toISOString().slice(0, 10)}.sesame`, await C.exporterChiffre(miens(), m1.input.value), 'application/json');
+      fichier(`codvault-${new Date().toISOString().slice(0, 10)}.codvault`, await C.exporterChiffre(miens(), m1.input.value), 'application/json');
       return true;
     } }] });
   });
@@ -680,15 +680,15 @@ function pageImport() {
     await dialogue({ titre: 'Export en clair', texte: 'Tous tes mots de passe, lisibles par quiconque ouvre le fichier (ceux qu’on te partage n’y sont pas). Seulement pour passer à un autre gestionnaire ; supprime le fichier aussitôt après.', contenu: [m.noeud, e2],
       boutons: [{ texte: 'Annuler', classe: 'flat', valeur: null }, { texte: 'Exporter en clair', classe: 'danger solid', agir: async () => {
         try { await C.deverrouiller(m.input.value, coffre, moi.id); } catch (x) { e2.textContent = x.message; return false; }
-        fichier(`sesame-${new Date().toISOString().slice(0, 10)}-EN-CLAIR.csv`, C.versCsv(miens()), 'text/csv');
+        fichier(`codvault-${new Date().toISOString().slice(0, 10)}-EN-CLAIR.csv`, C.versCsv(miens()), 'text/csv');
         return true;
       } }] });
   });
   return h('div', { class: 'page etroite' },
-    h('div', { class: 'headrow' }, h('div', {}, h('h1', { class: 'title', text: 'Importer, exporter' }), h('p', { class: 'lede', text: 'Depuis Bitwarden, Chrome, Edge, Firefox, Safari (CSV) ou un export de SÉSAME. Le fichier est lu et chiffré dans ce navigateur.' }))),
+    h('div', { class: 'headrow' }, h('div', {}, h('h1', { class: 'title', text: 'Importer, exporter' }), h('p', { class: 'lede', text: 'Depuis Bitwarden, Chrome, Edge, Firefox, Safari (CSV) ou un export de CODVAULT. Le fichier est lu et chiffré dans ce navigateur.' }))),
     h('h2', { class: 'sect', text: 'Importer' }), entree, err, apercu,
     h('h2', { class: 'sect', text: 'Exporter' }),
-    h('div', { class: 'reglage-ligne' }, h('div', {}, h('strong', { text: 'Export chiffré (.sesame)' }), h('small', { text: 'Sauvegarde à garder hors ligne ; s’importe ici avec son mot de passe.' })), h('button', { class: 'btn', type: 'button', onclick: exportChiffre }, icone('telecharge', 15), 'Exporter')),
+    h('div', { class: 'reglage-ligne' }, h('div', {}, h('strong', { text: 'Export chiffré (.codvault)' }), h('small', { text: 'Sauvegarde à garder hors ligne ; s’importe ici avec son mot de passe.' })), h('button', { class: 'btn', type: 'button', onclick: exportChiffre }, icone('telecharge', 15), 'Exporter')),
     h('div', { class: 'reglage-ligne' }, h('div', {}, h('strong', { text: 'Export en clair (CSV)' }), h('small', { text: 'Pour changer de gestionnaire. Demande ton mot de passe maître.' })), h('button', { class: 'btn danger', type: 'button', onclick: exportClair }, icone('alerte', 15), 'Exporter en clair')));
 }
 
@@ -728,7 +728,7 @@ function pageCles() {
     const k = h('div', { class: 'recup mono', text: neuve.recuperation });
     await dialogue({ titre: 'Ta nouvelle clé de récupération', texte: 'Montrée une seule fois. Garde-la hors de ce navigateur.', contenu: [k,
       h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => copier(neuve.recuperation, 'Clé copiée', 120) }, icone('copie', 14), 'Copier'),
-        h('button', { class: 'btn sm', type: 'button', onclick: () => fichier(`sesame-recuperation-${moi.identifiant}.txt`, `SÉSAME — clé de récupération du compte ${moi.identifiant}\n\n${neuve.recuperation}\n`, 'text/plain') }, icone('telecharge', 14), 'Télécharger'))],
+        h('button', { class: 'btn sm', type: 'button', onclick: () => fichier(`codvault-recuperation-${moi.identifiant}.txt`, `CODVAULT — clé de récupération du compte ${moi.identifiant}\n\n${neuve.recuperation}\n`, 'text/plain') }, icone('telecharge', 14), 'Télécharger'))],
     boutons: [{ texte: 'Je l’ai mise de côté', classe: 'solid', valeur: true }] });
     neuve = null;
   });
@@ -736,7 +736,7 @@ function pageCles() {
     h('div', { class: 'headrow' }, h('div', {}, h('h1', { class: 'title', text: 'Coffre et clés' }), h('p', { class: 'lede', text: 'Le mot de passe maître et la clé de récupération ouvrent ton coffre, ici seulement. Le serveur ne peut ni les lire ni les retrouver.' }))),
     h('h2', { class: 'sect', text: 'Ton empreinte' }),
     h('p', { class: 'empreinte mono', text: coffre.empreinte }),
-    h('p', { class: 'hint', text: 'Celle de ta clé publique. Quelqu’un qui veut te partager un élément sensible peut la comparer, de vive voix, avec celle que SÉSAME lui montre.' }),
+    h('p', { class: 'hint', text: 'Celle de ta clé publique. Quelqu’un qui veut te partager un élément sensible peut la comparer, de vive voix, avec celle que CODVAULT lui montre.' }),
     h('h2', { class: 'sect', text: 'Verrouillage' }),
     h('div', { class: 'reglage-ligne' }, h('div', {}, h('strong', { text: 'Verrouiller après' }), h('small', { text: 'Sans activité, le coffre se referme : il faut retaper le mot de passe maître.' })),
       choix(prefs.verrou, [[1, '1 min'], [5, '5 min'], [10, '10 min'], [15, '15 min'], [30, '30 min'], [60, '1 h']], async v => { prefs.verrou = v; await sauverPrefs(); reveil(); }, 'Délai de verrouillage')),

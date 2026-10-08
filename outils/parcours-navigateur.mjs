@@ -1,4 +1,4 @@
-// Parcours réel de SÉSAME dans Chromium (clé d'accès virtuelle) : installation
+// Parcours réel de CODVAULT dans Chromium (clé d'accès virtuelle) : installation
 // par la porte du socle, création du coffre, ajouts, détail, générateur, codes,
 // import, réglages, verrouillage — et contrôle de mise en page à chaque largeur.
 //   node outils/vitrine.mjs 8198 &  node outils/parcours-navigateur.mjs http://localhost:8198 JETON DOSSIER
@@ -6,10 +6,10 @@ import { chromium } from 'playwright';
 import fs from 'node:fs';
 import { chevauchements, LARGEURS } from '../socle/essai/mise-en-page.mjs';
 
-const [base, jeton, sortie = '/tmp/captures-sesame'] = process.argv.slice(2);
+const [base, jeton, sortie = '/tmp/captures-codvault'] = process.argv.slice(2);
 fs.mkdirSync(sortie, { recursive: true });
-// sesame.test : un nom qui n'est pas localhost, pour voir SÉSAME servi en HTTP hors contexte sûr.
-const navigateur = await chromium.launch({ args: ['--host-resolver-rules=MAP sesame.test 127.0.0.1'] });
+// codvault.test : un nom qui n'est pas localhost, pour voir CODVAULT servi en HTTP hors contexte sûr.
+const navigateur = await chromium.launch({ args: ['--host-resolver-rules=MAP codvault.test 127.0.0.1'] });
 const contexte = await navigateur.newContext({ viewport: { width: 1280, height: 860 }, permissions: ['clipboard-read', 'clipboard-write'] });
 const page = await contexte.newPage();
 const erreurs = [];
@@ -43,7 +43,7 @@ await page.goto(base);
 await page.getByText('Premier compte').waitFor();
 await page.getByLabel('Jeton d’installation').fill(jeton);
 await page.getByLabel('Identifiant').fill('ana');
-await page.getByLabel('Mot de passe').fill('phrase de passe pour le sesame de la vitrine');
+await page.getByLabel('Mot de passe').fill('phrase de passe pour le codvault de la vitrine');
 await page.getByRole('button', { name: 'Créer le compte' }).click();
 await page.getByRole('button', { name: /Créer la clé maintenant/ }).click();
 await page.getByText('J’ai rangé ces codes en lieu sûr.').click();
@@ -126,9 +126,9 @@ await page.getByRole('heading', { name: 'Comptes', exact: true }).waitFor();
 await aller('Tout le coffre', 'Mon coffre');
 await page.waitForTimeout(400);
 const n = await page.locator('.el').count();
-// En HTTP sous un vrai nom, aucun coffre ne s'ouvre : SÉSAME doit le dire au lieu d'échouer en silence.
+// En HTTP sous un vrai nom, aucun coffre ne s'ouvre : CODVAULT doit le dire au lieu d'échouer en silence.
 const http = await navigateur.newPage();
-await http.goto(base.replace('localhost', 'sesame.test'));
+await http.goto(base.replace('localhost', 'codvault.test'));
 const horsContexte = await http.getByRole('heading', { name: 'HTTPS demandé' }).waitFor({ timeout: 10_000 }).then(() => true, () => false);
 
 const defauts = rapport.filter(r => r.defauts.length);

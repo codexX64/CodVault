@@ -1,6 +1,6 @@
-SÉSAME — CE QUE LE SERVICE GARDE, ET POURQUOI
+CODVAULT — CE QUE LE SERVICE GARDE, ET POURQUOI
 
-SÉSAME est installé et exploité par la personne qui l'héberge : c'est elle qui
+CODVAULT est installé et exploité par la personne qui l'héberge : c'est elle qui
 répond de ces données. Ce texte dit ce que le logiciel conserve, ce qu'il
 envoie ailleurs, ce qu'il voit malgré le chiffrement, et comment chacun exerce
 ses droits.
@@ -49,7 +49,7 @@ Coffre
     (trente jours, sept pour un échec), sans lien avec qui l'a demandé ; un
     autre compte de la même instance peut toutefois deviner, à la rapidité de
     la réponse, qu'un logo y était déjà.
-  - L'exploitant peut couper les logos (SESAME_LOGOS=non) : plus aucune
+  - L'exploitant peut couper les logos (CODVAULT_LOGOS=non) : plus aucune
     demande ne part, chaque site garde ses initiales.
 
 3. CE QUI PART AILLEURS
@@ -85,6 +85,6 @@ Coffre
   la notification d'une violation de données dans les 72 heures, sont décrites
   dans SECURITY.md, dans le dépôt du projet.
 
-SÉSAME n'est pas destiné aux mineurs. Il ne traite en clair aucune catégorie
+CODVAULT n'est pas destiné aux mineurs. Il ne traite en clair aucune catégorie
 particulière de données : ce qu'une personne écrit dans son coffre reste
 chiffré, illisible pour le serveur.

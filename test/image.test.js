@@ -1,5 +1,5 @@
 // Le réencodage des logos : ce qui entre est décodé, ce qui sort est un PNG
-// écrit par SÉSAME, sans rien de l'original que ses pixels.
+// écrit par CODVAULT, sans rien de l'original que ses pixels.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
@@ -46,7 +46,7 @@ test('PNG : chaque type de couleur et chaque filtre décodés à l’identique',
   assert.deepEqual([...lirePng(png({ l: 3, h: 1, couleur: 0, prof: 1, lignes: [[0b10100000]] })).px], [255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255]);
   // RVB 16 bits : l'octet de poids fort est gardé.
   assert.deepEqual([...lirePng(png({ l: 1, h: 1, couleur: 2, prof: 16, lignes: [[0x12, 0x34, 0xab, 0xcd, 0xff, 0x00]] })).px], [0x12, 0xab, 0xff, 255]);
-  // Ce que SÉSAME écrit, il le relit à l'identique.
+  // Ce que CODVAULT écrit, il le relit à l'identique.
   assert.deepEqual([...lirePng(ecrirePng({ l: 4, h: 3, px: Uint8Array.from(rgba.flat()) })).px], rgba.flat());
 });
 

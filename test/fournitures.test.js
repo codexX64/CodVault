@@ -1,4 +1,4 @@
-// Ce que SÉSAME sert sans l'avoir écrit : chaque fichier doit être exactement
+// Ce que CODVAULT sert sans l'avoir écrit : chaque fichier doit être exactement
 // celui dont PROVENANCE garde l'empreinte, licence à côté.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

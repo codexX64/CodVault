@@ -1,4 +1,4 @@
-// Routes de SÉSAME. Le serveur ne voit que du chiffré : il range, il vérifie
+// Routes de CODVAULT. Le serveur ne voit que du chiffré : il range, il vérifie
 // qui a le droit de lire ou d'écrire quel bloc, il ne peut rien ouvrir.
 //
 //   - lecture : son coffre, ses éléments et ceux qu'on lui partage ;
@@ -251,7 +251,7 @@ export function creerApi({ socle, db, logos, cfg }) {
   portail.exporteur = async compte => ({
     coffre: vueCoffre(coffreDe(compte)) || null,
     elements: db.prepare('SELECT id, chiffre, cle, version, cree, modifie FROM elements WHERE proprietaire = ?').all(compte),
-    note: 'Tout est chiffré par ton mot de passe maître : ce fichier ne s’ouvre qu’avec lui (ou la clé de récupération), dans SÉSAME.',
+    note: 'Tout est chiffré par ton mot de passe maître : ce fichier ne s’ouvre qu’avec lui (ou la clé de récupération), dans CODVAULT.',
   });
 
   const PARAM = { id: ID, dest: /^[A-Za-z0-9_-]{1,64}$/, domaine: /^[a-z0-9.-]{4,253}$/i };

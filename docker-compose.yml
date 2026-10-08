@@ -1,17 +1,17 @@
-# SÉSAME seul, sans le Hub : docker compose up -d --build
+# CODVAULT seul, sans le Hub : docker compose up -d --build
 # Le jeton d'installation du premier compte s'affiche dans
-# « docker compose logs sesame ». À servir en HTTPS (relais ou SOCLE_HTTP non) :
+# « docker compose logs codvault ». À servir en HTTPS (relais ou SOCLE_HTTP non) :
 # le navigateur n'ouvre WebCrypto et les clés d'accès que dans un contexte sûr.
-name: sesame
+name: codvault
 
 services:
-  sesame:
+  codvault:
     build: .
-    image: ghcr.io/codexx64/sesame:1.0.0
-    container_name: sesame
+    image: ghcr.io/codexx64/codvault:1.0.0
+    container_name: codvault
     restart: unless-stopped
     ports: ["127.0.0.1:8175:8175"]
-    volumes: [sesame-data:/data]
+    volumes: [codvault-data:/data]
     env_file: [.env]
     read_only: true
     tmpfs: ["/tmp:size=16m,mode=1777"]
@@ -22,4 +22,4 @@ services:
     pids_limit: 96
 
 volumes:
-  sesame-data:
+  codvault-data:

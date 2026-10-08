@@ -1,15 +1,15 @@
-# Code quality record — SÉSAME
+# Code quality record — CODVAULT
 
 Method: Project Baseline Requirements & Security Manual, Part III (chapters 37-49)
 Reviewed: 2026-10-08   ·   Owner: Codex64
 
 ## Behaviour freeze
-SÉSAME est neuf : il reprend l'idée d'une maquette (un fichier HTML sans
+CODVAULT est neuf : il reprend l'idée d'une maquette (un fichier HTML sans
 serveur ni chiffrement réel), pas son code. Le passage Part III s'est fait en
 deux volets. Le premier (bannières, un nom local, trois littéraux écrits en
 échappements) a précédé le premier commit ; il ne change aucune instruction,
 et la suite complète est passée juste après. Le second est dans l'historique,
-après le commit 2c059d5, qui sert de référence : 18 essais de SÉSAME et 63 du
+après le commit 2c059d5, qui sert de référence : 18 essais de CODVAULT et 63 du
 socle, tous au vert (`git worktree add <dossier> 2c059d5`, puis `npm test`),
 plus le parcours Chromium (112 écrans × largeurs, 0 défaut, 0 erreur de
 console). Le passage n'a touché ni une route, ni un schéma de corps, ni le
@@ -26,12 +26,12 @@ Changements de comportement voulus, chacun étant le correctif :
 | aucun plafond d'octets par coffre | 64 Mio par coffre, partages en écriture compris | SEC-FILE-002, REQ-WEB-008 |
 | clé de récupération montrée avant que le coffre soit enregistré | enregistré d'abord, montrée ensuite | défaut : une clé mise de côté pouvait ne valoir pour aucun coffre |
 | exports avec les éléments partagés par d'autres, champs CSV bruts | ses propres éléments seulement, formules de tableur neutralisées | injection de formule d'un compte à l'autre |
-| export `.sesame` importé sans contrôle de forme | champs connus seulement, en texte, bornés | REQ-DATA-007 |
+| export `.codvault` importé sans contrôle de forme | champs connus seulement, en texte, bornés | REQ-DATA-007 |
 | en HTTP sous un vrai nom, échec silencieux | « HTTPS demandé », rien d'autre ne démarre | REQ-WEB-001 |
 | déconnexion non confirmée : rechargement comme si de rien n'était | annoncée, coffre gardé verrouillé | défaut : session peut-être encore ouverte |
 | presse-papiers non vidé quand l'onglet a perdu le focus | vidé au retour du focus | défaut : un mot de passe restait copié |
 | notice et manifeste : « le serveur ignore à quel compte appartient un domaine de logo » | le serveur le voit à la demande et ne l'écrit nulle part | SEC-PRIV-003 : l'ancienne phrase était fausse |
-| textes du manifeste repris de VIGIE | textes de SÉSAME | défaut de copie |
+| textes du manifeste repris de VIGIE | textes de CODVAULT | défaut de copie |
 
 ## Layer status
 | Chapter | Subject | Status | What changed |
@@ -47,7 +47,7 @@ Changements de comportement voulus, chacun étant le correctif :
 | 47 | Tests | DONE | chemins d'erreur et frontières : balayage sans session et par rôle, champ en trop, corps géant, plafonds, plancher et renforcement d'Argon2id, adresses internes, image piégée, export fabriqué, formule de tableur, configuration invalide ; Argon2id aux paramètres de production, croisé avec celui de Node ; la recherche de clair lit maintenant la base et son WAL, en octets UTF-8 (elle ne pouvait pas trouver un « î ») ; cassures volontaires détectées (ci-dessous) |
 | 48 | Documentation, furniture and version control | DONE | README vérifié phrase par phrase (sept largeurs de contrôle, pas cinq) ; `SECURITY.md` et ce fichier ; un sujet par commit, messages courts en français, identité unique, UTC |
 
-`catch` restants (code de SÉSAME, hors socle), par raison :
+`catch` restants (code de CODVAULT, hors socle), par raison :
 
 | Raison | Nombre | Où |
 |---|---|---|
@@ -93,7 +93,7 @@ rotation.
 
 ## Detection sweep
 Commandes de l'annexe B.5 sur `src web/app.js web/crypto.js web/index.html
-web/sesame.css test outils deploy Dockerfile .github hub.json` (hors
+web/codvault.css test outils deploy Dockerfile .github hub.json` (hors
 `web/vendor/`, fichiers tiers servis tels que publiés) :
 
 | Commande | Résultat |
@@ -106,7 +106,7 @@ web/sesame.css test outils deploy Dockerfile .github hub.json` (hors
 | fonctions `process`/`handle`/`manage`/`perform`/`execute`/`do…` | 0 |
 | suffixes Manager/Service/Handler/Provider/Factory/Helper/Util/Wrapper/Processor/Engine | 0 |
 | fichiers `utils`/`helpers`/`common`/`misc`/`shared` | 0 |
-| affectations `data`/`result`/`output`/`temp`/`tmp`/`res`/`ret`/`val`/`obj`/`item` | 3 : `res` paramètre de rappel d'une réponse HTTP (`src/logos.js`), `res` d'une fausse réponse HTTP et `tmp` du dossier temporaire (`test/sesame.test.js`) |
+| affectations `data`/`result`/`output`/`temp`/`tmp`/`res`/`ret`/`val`/`obj`/`item` | 3 : `res` paramètre de rappel d'une réponse HTTP (`src/logos.js`), `res` d'une fausse réponse HTTP et `tmp` du dossier temporaire (`test/codvault.test.js`) |
 | `catch (e)`, `catch {`, `.catch(` | 36, justifiés ci-dessus |
 | « An error occurred », « Something went wrong », « Unexpected error » | 0 |
 | essais vides (`assert.ok(true)`, `toBeDefined()`) | 0 |
@@ -117,7 +117,7 @@ web/sesame.css test outils deploy Dockerfile .github hub.json` (hors
 | `npx depcheck` | sans objet : aucune dépendance |
 
 ## Verification (chapter 49)
-- [x] Full suite passes and matches the baseline — 18 essais de SÉSAME et 63 du socle avant le passage ; 20 et 63 aujourd'hui, tous verts, aux paramètres de production d'Argon2id
+- [x] Full suite passes and matches the baseline — 18 essais de CODVAULT et 63 du socle avant le passage ; 20 et 63 aujourd'hui, tous verts, aux paramètres de production d'Argon2id
 - [x] Public API diff empty — routes, schémas, formats de bloc et liaisons importées de `web/crypto.js` inchangés par le passage ; contrat épinglé par les essais d'API et le parcours Chromium (112 écrans × largeurs, 0 défaut, 0 erreur)
 - [x] Characterisation tests deleted after use — aucun essai temporaire ; l'essai croisé Argon2id / Node reste, volontairement
 - [x] Read-aloud test passed — `web/app.js`, `web/crypto.js`, `src/api.js` relus de bout en bout ; ce qui n'avait pas de réponse à « pourquoi est-ce là ? » est corrigé plus haut

@@ -1,4 +1,4 @@
-// SÉSAME de bout en bout, par HTTP, avec le chiffrement du navigateur
+// CODVAULT de bout en bout, par HTTP, avec le chiffrement du navigateur
 // (web/crypto.js, sur le WebCrypto de Node) : ce que le serveur reçoit, ce
 // qu'il refuse, ce qu'il ne peut pas lire.
 import { test, before, after } from 'node:test';
@@ -15,11 +15,11 @@ import { ecrirePng, lirePng } from '../src/image.js';
 import { ouvrirBase } from '../src/base.js';
 import * as C from '../web/crypto.js';
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sesame-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'codvault-'));
 const INSTALL = 'jeton-d-installation-pour-les-essais';
 const silence = { info() {}, warn() {}, error() {} };
 const MAITRE = 'une phrase maîtresse pour les essais';
-let sesame, port, admin, membre, lecteur, ids = {};
+let codvault, port, admin, membre, lecteur, ids = {};
 
 // Une vraie icône de 96 px, que le serveur doit réencoder à 64.
 const PNG = ecrirePng({ l: 96, h: 96, px: Uint8Array.from({ length: 96 * 96 * 4 }, (_, i) => [20, 120, 220, 255][i % 4]) });
@@ -54,16 +54,16 @@ function fausseRequete(o, rappel) {
 before(async () => {
   globalThis.__ee = await import('node:events');
   process.umask(0o077);
-  sesame = await demarrer({ DATA_DIR: path.join(tmp, 'data'), PORT: '0', HOTE: '127.0.0.1', SOCLE_JETON_INSTALLATION: INSTALL },
+  codvault = await demarrer({ DATA_DIR: path.join(tmp, 'data'), PORT: '0', HOTE: '127.0.0.1', SOCLE_JETON_INSTALLATION: INSTALL },
     { log: silence, logos: { resoudre: async hote => reseau[hote] || [], requete: fausseRequete } });
-  port = sesame.port;
+  port = codvault.port;
   admin = new Client(port);
   await adminComplet(admin, { jeton: INSTALL });
   membre = (await membreInvite(admin, () => new Client(port), { identifiant: 'leo', role: 'membre' })).client;
   lecteur = (await membreInvite(admin, () => new Client(port), { identifiant: 'lea', role: 'lecture' })).client;
   for (const [nom, c] of Object.entries({ admin, membre, lecteur })) ids[nom] = (await c.get('/api/coffre')).json.compte;
 });
-after(async () => { await sesame?.arreter(); fs.rmSync(tmp, { recursive: true, force: true }); });
+after(async () => { await codvault?.arreter(); fs.rmSync(tmp, { recursive: true, force: true }); });
 
 const ok = r => { assert.ok(r.status < 300, `${r.status} ${JSON.stringify(r.json)}`); return r.json; };
 const sessions = {};
@@ -167,7 +167,7 @@ test('API : le coffre se crée une fois, la dérivation ne descend pas, rien ne 
   assert.equal(lu.recuperation, undefined, 'l’enveloppe de récupération ne sort que sous renfort');
   // Le serveur ne garde que du chiffré : ni le mot de passe maître, ni la clé de récupération.
   // Les écritures récentes sont dans le journal WAL : les deux fichiers sont lus, et comparés en octets UTF-8.
-  const base = Buffer.concat(['sesame.db', 'sesame.db-wal'].map(f => fs.readFileSync(path.join(tmp, 'data', f))));
+  const base = Buffer.concat(['codvault.db', 'codvault.db-wal'].map(f => fs.readFileSync(path.join(tmp, 'data', f))));
   for (const clair of [MAITRE, n.recuperation, n.recuperation.replace(/-/g, '')]) assert.ok(!base.includes(Buffer.from(clair)), clair.slice(0, 12));
   assert.ok(Buffer.concat([base, Buffer.from(MAITRE)]).includes(Buffer.from(MAITRE)), 'la recherche elle-même trouve un clair présent');
 });
@@ -192,7 +192,7 @@ test('API : éléments — propriétaire seul, versions, plafonds ; le serveur n
   assert.equal((await admin.put(`/api/elements/${el.id}`, { version: 1, chiffre: ch })).status, 409);
   const relu = (await admin.get('/api/elements')).json.elements.find(e => e.id === el.id);
   assert.equal((await C.dechiffrerElement(s, relu)).motDePasse, 'nouveau-mot-de-passe-banque');
-  const base = fs.readFileSync(path.join(tmp, 'data', 'sesame.db')).toString('latin1') + fs.readFileSync(path.join(tmp, 'data', 'sesame.db-wal')).toString('latin1');
+  const base = fs.readFileSync(path.join(tmp, 'data', 'codvault.db')).toString('latin1') + fs.readFileSync(path.join(tmp, 'data', 'codvault.db-wal')).toString('latin1');
   assert.ok(!/mot-de-passe-de-la-banque|nouveau-mot-de-passe-banque|banque\.exemple/.test(base), 'aucune trace en clair, ni en base ni dans son journal d’écriture');
   // Un lot d'import : tout ou rien.
   const lot = await Promise.all([1, 2, 3].map(i => C.chiffrerNouveau(s, { nom: `import ${i}`, motDePasse: `p${i}` })));
@@ -280,15 +280,15 @@ test('dérivation : un coffre aux paramètres d’hier se renforce au déverroui
 test('logos : du site lui-même, jamais d’une adresse interne, jamais de SVG', async () => {
   await coffreDe('admin', admin);
   requetes = [];
-  const l = await sesame.logos.obtenir('exemple.org');
+  const l = await codvault.logos.obtenir('exemple.org');
   assert.equal(l.type, 'image/png');
   assert.ok(!requetes.some(x => x.endsWith('.svg')), 'le SVG déclaré est écarté');
   requetes = [];
-  assert.equal((await sesame.logos.obtenir('exemple.org')).type, 'image/png');
+  assert.equal((await codvault.logos.obtenir('exemple.org')).type, 'image/png');
   assert.deepEqual(requetes, [], 'en cache : aucune nouvelle requête');
-  assert.equal(await sesame.logos.obtenir('interne.org'), null);
+  assert.equal(await codvault.logos.obtenir('interne.org'), null);
   assert.ok(!requetes.some(x => x.startsWith('interne.org')), 'une adresse privée n’est jamais contactée');
-  assert.equal(await sesame.logos.obtenir('rebond.org'), null);
+  assert.equal(await codvault.logos.obtenir('rebond.org'), null);
   assert.ok(!requetes.some(x => x.startsWith('interne.org')), 'ni par une redirection');
   for (const ip of ['127.0.0.1', '10.1.2.3', '172.20.0.1', '192.168.1.1', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', '::', 'fe80::1', 'fd00::1', '::ffff:10.0.0.1', '64:ff9b::a00:1', '2001:db8::1', 'ff02::1']) assert.equal(adresseInterdite(ip), true, ip);
   for (const ip of ['93.184.216.34', '1.1.1.1', '2606:4700:4700::1111']) assert.equal(adresseInterdite(ip), false, ip);
@@ -346,7 +346,7 @@ test('balayage : chaque route fermée sans session, chaque écriture fermée au 
 });
 
 test('plafonds par coffre : nombre d’éléments et octets, à l’ajout comme à la modification', async () => {
-  const autre = await demarrer({ DATA_DIR: path.join(tmp, 'plafonds'), PORT: '0', HOTE: '127.0.0.1', SOCLE_JETON_INSTALLATION: INSTALL, SESAME_MAX_ELEMENTS: '10', SESAME_MAX_MIO: '1' }, { log: silence });
+  const autre = await demarrer({ DATA_DIR: path.join(tmp, 'plafonds'), PORT: '0', HOTE: '127.0.0.1', SOCLE_JETON_INSTALLATION: INSTALL, CODVAULT_MAX_ELEMENTS: '10', CODVAULT_MAX_MIO: '1' }, { log: silence });
   try {
     const a = new Client(autre.port);
     await adminComplet(a, { jeton: INSTALL });
@@ -368,8 +368,8 @@ test('plafonds par coffre : nombre d’éléments et octets, à l’ajout comme 
 });
 
 test('configuration : une valeur invalide arrête le démarrage, toutes les erreurs dites d’un coup', async () => {
-  const env = { DATA_DIR: path.join(tmp, 'mauvaise'), PORT: '0', HOTE: '127.0.0.1', SESAME_LOGOS: 'peut-être', SESAME_MAX_MIO: '0' };
-  await assert.rejects(demarrer(env, { log: silence }), e => /SESAME_LOGOS/.test(e.message) && /SESAME_MAX_MIO/.test(e.message));
+  const env = { DATA_DIR: path.join(tmp, 'mauvaise'), PORT: '0', HOTE: '127.0.0.1', CODVAULT_LOGOS: 'peut-être', CODVAULT_MAX_MIO: '0' };
+  await assert.rejects(demarrer(env, { log: silence }), e => /CODVAULT_LOGOS/.test(e.message) && /CODVAULT_MAX_MIO/.test(e.message));
 });
 
 test('un compte effacé part avec son coffre, ses éléments et leurs partages', async () => {
@@ -379,7 +379,7 @@ test('un compte effacé part avec son coffre, ses éléments et leurs partages',
   const n = await C.creerCoffre(MAITRE, compte);
   ok(await zoe.post('/api/coffre', n.publique));
   ok(await zoe.post('/api/elements', await C.chiffrerNouveau(n.session, { nom: 'à moi' })));
-  sesame.socle.comptes.apresSuppression.forEach(f => f(compte));
-  assert.equal(sesame.db.prepare('SELECT count(*) n FROM elements WHERE proprietaire = ?').get(compte).n, 0);
-  assert.equal(sesame.db.prepare('SELECT count(*) n FROM coffres WHERE compte = ?').get(compte).n, 0);
+  codvault.socle.comptes.apresSuppression.forEach(f => f(compte));
+  assert.equal(codvault.db.prepare('SELECT count(*) n FROM elements WHERE proprietaire = ?').get(compte).n, 0);
+  assert.equal(codvault.db.prepare('SELECT count(*) n FROM coffres WHERE compte = ?').get(compte).n, 0);
 });

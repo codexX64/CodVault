@@ -1,4 +1,4 @@
-// Chiffrement de SÉSAME, dans le navigateur seul (WebCrypto). Le serveur ne
+// Chiffrement de CODVAULT, dans le navigateur seul (WebCrypto). Le serveur ne
 // reçoit que des blocs chiffrés : ni le mot de passe maître, ni la clé du
 // coffre, ni un mot de passe enregistré ne quittent jamais cette page en clair.
 //
@@ -80,7 +80,7 @@ async function aes(cle, usages = ['encrypt', 'decrypt']) {
 }
 async function hkdf(secret, info, usages = ['encrypt', 'decrypt']) {
   const base = await subtle.importKey('raw', secret, 'HKDF', false, ['deriveKey']);
-  return subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: te.encode('sesame/hkdf/v1'), info: te.encode(info) }, base, { name: 'AES-GCM', length: 256 }, false, usages);
+  return subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: te.encode('codvault/hkdf/v1'), info: te.encode(info) }, base, { name: 'AES-GCM', length: 256 }, false, usages);
 }
 /** Bloc « v1.<iv>.<chiffré> » : AES-256-GCM, IV aléatoire de 96 bits, données associées obligatoires. */
 async function sceller(cle, clair, aad) {
@@ -98,14 +98,14 @@ export async function ouvrir(cle, bloc, aad) {
 
 // Les données associées : chaque bloc n'est valable qu'à sa place.
 const AAD = {
-  coffre: compte => `sesame/coffre/v1/${compte}`,
-  recuperation: compte => `sesame/recuperation/v1/${compte}`,
-  identite: compte => `sesame/identite/v1/${compte}`,
-  preferences: compte => `sesame/preferences/v1/${compte}`,
-  element: id => `sesame/element/v1/${id}`,
-  cle: (id, compte) => `sesame/cle/v1/${id}/${compte}`,
-  partage: (id, dest) => `sesame/partage/v1/${id}/${dest}`,
-  export: () => 'sesame/export/v1',
+  coffre: compte => `codvault/coffre/v1/${compte}`,
+  recuperation: compte => `codvault/recuperation/v1/${compte}`,
+  identite: compte => `codvault/identite/v1/${compte}`,
+  preferences: compte => `codvault/preferences/v1/${compte}`,
+  element: id => `codvault/element/v1/${id}`,
+  cle: (id, compte) => `codvault/cle/v1/${id}/${compte}`,
+  partage: (id, dest) => `codvault/partage/v1/${id}/${dest}`,
+  export: () => 'codvault/export/v1',
 };
 
 /** Le mot de passe maître étiré par Argon2id, puis HKDF vers la clé d'enveloppe. */
@@ -114,7 +114,7 @@ async function deriverEnveloppe(motDePasse, kdf) {
   const mdp = te.encode(String(motDePasse).normalize('NFKC'));
   // asyncTick : la main revient au navigateur toutes les 10 ms, la page reste vivante pendant le calcul.
   const bits = await argon2idAsync(mdp, deB64u(kdf.sel), { m: kdf.m, t: kdf.t, p: kdf.p, dkLen: 32, asyncTick: 10 });
-  try { return await hkdf(bits, 'sesame/enveloppe/v1'); } finally { effacer(bits); effacer(mdp); }
+  try { return await hkdf(bits, 'codvault/enveloppe/v1'); } finally { effacer(bits); effacer(mdp); }
 }
 
 /** La clé de récupération telle qu'on l'imprime : 32 octets en base 32, par groupes de quatre. */
@@ -123,7 +123,7 @@ const enveloppeRecuperation = async texte => {
   // Recopiée à la main : 0, 1 et 8 n'existent pas en base 32, c'est O, I et B mal lus.
   const o = deBase32(String(texte).toUpperCase().replace(/0/g, 'O').replace(/1/g, 'I').replace(/8/g, 'B'));
   if (o.length !== 32) throw new Error('Clé de récupération incomplète : 52 caractères attendus.');
-  try { return await hkdf(o, 'sesame/recuperation/v1'); } finally { effacer(o); }
+  try { return await hkdf(o, 'codvault/recuperation/v1'); } finally { effacer(o); }
 };
 
 /** L'empreinte d'une clé publique, à comparer de vive voix avant un partage. */
@@ -241,7 +241,7 @@ async function cleBrute(s, ligne) {
     if (!m) throw new Error('Partage illisible.');
     const eph = await subtle.importKey('spki', deB64u(m[1]), ECDH, false, []);
     const secret = new Uint8Array(await subtle.deriveBits({ name: 'ECDH', public: eph }, s.privee, 256));
-    try { return await ouvrir(await hkdf(secret, `sesame/partage/v1/${ligne.id}/${s.compte}`), m[2], AAD.partage(ligne.id, s.compte)); } finally { effacer(secret); }
+    try { return await ouvrir(await hkdf(secret, `codvault/partage/v1/${ligne.id}/${s.compte}`), m[2], AAD.partage(ligne.id, s.compte)); } finally { effacer(secret); }
   }
   return ouvrir(s.cleCoffre, ligne.cle, AAD.cle(ligne.id, s.compte));
 }
@@ -265,7 +265,7 @@ export async function envelopperPour(s, ligne, destinataire) {
     const eph = await subtle.generateKey(ECDH, true, ['deriveBits']);
     const secret = new Uint8Array(await subtle.deriveBits({ name: 'ECDH', public: dest }, eph.privateKey, 256));
     try {
-      const k = await hkdf(secret, `sesame/partage/v1/${ligne.id}/${destinataire.id}`);
+      const k = await hkdf(secret, `codvault/partage/v1/${ligne.id}/${destinataire.id}`);
       return `e1.${b64u(await subtle.exportKey('spki', eph.publicKey))}.${await sceller(k, brute, AAD.partage(ligne.id, destinataire.id))}`;
     } finally { effacer(secret); }
   } finally { effacer(brute); }
@@ -274,19 +274,19 @@ export async function envelopperPour(s, ligne, destinataire) {
 export async function exporterChiffre(elements, motDePasse) {
   const kdf = nouveauKdf();
   const bloc = await sceller(await deriverEnveloppe(motDePasse, kdf), te.encode(JSON.stringify(elements)), AAD.export());
-  return JSON.stringify({ format: 'sesame-export', version: 1, kdf, bloc });
+  return JSON.stringify({ format: 'codvault-export', version: 1, kdf, bloc });
 }
 export async function importerChiffre(texte, motDePasse) {
   let o;
   try { o = JSON.parse(texte); } catch { throw new Error('Fichier illisible.'); }
-  if (o?.format !== 'sesame-export') throw new Error('Ce n’est pas un export de SÉSAME.');
+  if (o?.format !== 'codvault-export') throw new Error('Ce n’est pas un export de CODVAULT.');
   let elements;
   try { elements = JSON.parse(td.decode(await ouvrir(await deriverEnveloppe(motDePasse, o.kdf), o.bloc, AAD.export()))); } catch (e) { throw new Error(/Paramètres/.test(e.message) ? e.message : 'Mot de passe d’export incorrect.'); }
   if (!Array.isArray(elements)) throw new Error('Export illisible.');
   return elements.filter(e => e && typeof e === 'object').map(borne);
 }
 
-/** Un élément importé ramené à la forme de SÉSAME : champs connus seulement, en texte, bornés. */
+/** Un élément importé ramené à la forme de CODVAULT : champs connus seulement, en texte, bornés. */
 function borne(e) {
   const t = (v, n) => String(v ?? '').slice(0, n);
   return {
@@ -401,7 +401,7 @@ const COLONNES = {
   favori: ['favorite', 'favori'],
   espace: ['folder', 'grouping', 'dossier', 'espace'],
 };
-/** Les lignes d'un export CSV, rendues en éléments de SÉSAME (rien ne part tant qu'ils ne sont pas chiffrés). */
+/** Les lignes d'un export CSV, rendues en éléments de CODVAULT (rien ne part tant qu'ils ne sont pas chiffrés). */
 export function depuisCsv(texte) {
   const [tete, ...lignes] = lireCsv(texte);
   if (!tete) throw new Error('Fichier vide.');
