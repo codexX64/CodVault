@@ -733,6 +733,35 @@ function pageCles() {
     boutons: [{ texte: 'Je l’ai mise de côté', classe: 'solid', valeur: true }] });
     neuve = null;
   });
+  const renouveler = sur(async () => {
+    const a = champ('Mot de passe maître', { type: 'password', autocomplete: 'current-password' });
+    const e2 = h('p', { class: 'erreur', role: 'alert' });
+    let fait = null;
+    await dialogue({ titre: 'Renouveler la clé du coffre', texte: 'Si tu crains qu’une copie de ton coffre ouvert ait fuité. Chaque élément est rechiffré sous une clé neuve, une nouvelle clé de récupération remplace l’ancienne, tes autres sessions et tes appareils reliés sont déconnectés.', contenu: [a.noeud, e2],
+      boutons: [{ texte: 'Annuler', classe: 'flat', valeur: null }, { texte: 'Renouveler', classe: 'solid danger', agir: async () => {
+        try {
+          await chargerElements();
+          const propres = [...lignes.values()].filter(l => l.via === 'propre');
+          const destinataires = new Map(propres.some(l => l.partages?.length) ? (await api.get('/api/destinataires')).destinataires.map(d => [d.id, d]) : []);
+          const r = await C.renouvelerCle(a.input.value, coffre, moi.id, propres, destinataires);
+          const corps = { ...r.publique };
+          if (!corps.preferences) delete corps.preferences;
+          coffre = { ...coffre, ...(await api.put('/api/coffre/cle', corps)) };
+          cles = r.session;
+          await chargerElements();
+          fait = r.recuperation;
+          return true;
+        } catch (x) { e2.textContent = x.message; return false; }
+      } }] });
+    if (!fait) return;
+    const k = h('div', { class: 'recup mono', text: fait });
+    await dialogue({ titre: 'Clé renouvelée : ta nouvelle clé de récupération', texte: 'L’ancienne n’ouvre plus rien. Montrée une seule fois : garde-la hors de ce navigateur.', contenu: [k,
+      h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => copier(fait, 'Clé copiée', 120) }, icone('copie', 14), 'Copier'),
+        h('button', { class: 'btn sm', type: 'button', onclick: () => fichier(`codvault-recuperation-${moi.identifiant}.txt`, `CODVAULT — clé de récupération du compte ${moi.identifiant}\n\n${fait}\n`, 'text/plain') }, icone('telecharge', 14), 'Télécharger'))],
+    boutons: [{ texte: 'Je l’ai mise de côté', classe: 'solid', valeur: true }] });
+    fait = null;
+    toast('Clé du coffre renouvelée.');
+  });
   return h('div', { class: 'page etroite' },
     h('div', { class: 'headrow' }, h('div', {}, h('h1', { class: 'title', text: 'Coffre et clés' }), h('p', { class: 'lede', text: 'Le mot de passe maître et la clé de récupération ouvrent ton coffre, ici seulement. Le serveur ne peut ni les lire ni les retrouver.' }))),
     h('h2', { class: 'sect', text: 'Ton empreinte' }),
@@ -747,7 +776,10 @@ function pageCles() {
     h('div', { class: 'reglage-ligne' }, h('div', {}, h('strong', { text: 'Mot de passe maître' }), h('small', { text: `Argon2id (${coffre.kdf.m / 1024} Mio, ${coffre.kdf.t} passes, ${coffre.kdf.p} voies) dans ce navigateur, puis AES-256-GCM.` })),
       h('button', { class: 'btn', type: 'button', onclick: changer }, icone('crayon', 15), 'Changer')),
     h('div', { class: 'reglage-ligne' }, h('div', {}, h('strong', { text: 'Clé de récupération' }), h('small', { text: 'En refaire une si tu crains que l’ancienne ait été vue. Demande de confirmer ton identité.' })),
-      h('button', { class: 'btn', type: 'button', onclick: refaireRecup }, icone('bouee', 15), 'Refaire')));
+      h('button', { class: 'btn', type: 'button', onclick: refaireRecup }, icone('bouee', 15), 'Refaire')),
+    h('h2', { class: 'sect', text: 'En cas de fuite' }),
+    h('div', { class: 'reglage-ligne' }, h('div', {}, h('strong', { text: 'Renouveler la clé du coffre' }), h('small', { text: 'Rechiffre tout sous des clés neuves : une ancienne copie du coffre ouvert ne sert plus à rien. Déconnecte tes autres sessions et tes appareils.' })),
+      h('button', { class: 'btn danger', type: 'button', onclick: renouveler }, icone('alerte', 15), 'Renouveler')));
 }
 
 async function pageExtension() {
