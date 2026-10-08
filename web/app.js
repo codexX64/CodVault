@@ -269,6 +269,7 @@ const PAGES = {
   codes: { titre: 'Codes A2F', ic: 'horloge2', rendre: pageCodes },
   importer: { titre: 'Importer, exporter', ic: 'importer', rendre: pageImport },
   cles: { titre: 'Coffre et clés', ic: 'cle', rendre: pageCles },
+  extension: { titre: 'Extension', ic: 'lien', rendre: pageExtension },
   securite: { titre: 'Sécurité du compte', ic: 'cadenas', rendre: () => pageSecurite(api, { service: SERVICE, confidentialite: '/confidentialite.txt' }) },
   ...(admin ? { comptes: { titre: 'Comptes', ic: 'utilisateurs', rendre: () => pageComptes(api, { service: SERVICE }) } } : {}),
 };
@@ -285,7 +286,7 @@ function coquille() {
       h('div', { class: 'mark' }, h('div', { class: 'g' }, icone('coffre', 15)), h('b', { text: SERVICE })),
       groupe('Coffre', ['coffre', 'favoris', 'notes', 'partages']),
       groupe('Outils', ['generateur', 'codes', 'importer']),
-      groupe('Compte', ['cles', 'securite', 'comptes']),
+      groupe('Compte', ['cles', 'extension', 'securite', 'comptes']),
       h('div', { class: 'railcard' },
         h('div', { class: 'row' }, icone('utilisateurs', 14), h('span', { class: 'tronque', text: moi.identifiant })),
         h('button', { class: 'btn sm plein mt12', type: 'button', onclick: () => verrouiller() }, icone('cadenas', 14), 'Verrouiller'),
@@ -747,6 +748,41 @@ function pageCles() {
       h('button', { class: 'btn', type: 'button', onclick: changer }, icone('crayon', 15), 'Changer')),
     h('div', { class: 'reglage-ligne' }, h('div', {}, h('strong', { text: 'Clé de récupération' }), h('small', { text: 'En refaire une si tu crains que l’ancienne ait été vue. Demande de confirmer ton identité.' })),
       h('button', { class: 'btn', type: 'button', onclick: refaireRecup }, icone('bouee', 15), 'Refaire')));
+}
+
+async function pageExtension() {
+  const { appareils, max } = await api.get('/api/appareils');
+  const relier = sur(async () => {
+    const nom = champ('Nom de l’appareil', { maxlength: 60, autocomplete: 'off', placeholder: 'Firefox du PC' }, 'Pour le reconnaître dans cette liste.');
+    const e2 = h('p', { class: 'erreur', role: 'alert' });
+    let code = null;
+    await dialogue({ titre: 'Relier une extension', texte: 'Un code de liaison est créé pour un seul appareil. Il ne lit que ton coffre chiffré : l’extension l’ouvre avec ton mot de passe maître.', contenu: [nom.noeud, e2],
+      boutons: [{ texte: 'Annuler', classe: 'flat', valeur: null }, { texte: 'Créer le code', classe: 'solid', agir: async () => {
+        try { code = (await api.post('/api/appareils', { nom: nom.input.value.trim() })).code; return true; } catch (x) { e2.textContent = x.message; return false; }
+      } }] });
+    if (!code) return;
+    const k = h('div', { class: 'recup mono', text: code });
+    await dialogue({ titre: 'Code de liaison', texte: 'Montré une seule fois. Colle-le dans l’extension CODVAULT, puis ferme cette fenêtre : il ne sert qu’à cet appareil.', contenu: [k,
+      h('div', { class: 'actions' }, h('button', { class: 'btn sm', type: 'button', onclick: () => copier(code, 'Code copié', 60) }, icone('copie', 14), 'Copier'))],
+    boutons: [{ texte: 'C’est fait', classe: 'solid', valeur: true }] });
+    code = null;
+    rafraichir();
+  });
+  const retirer = a => sur(async () => {
+    if (!(await confirmer(`Retirer « ${a.nom} » ?`, 'Il ne pourra plus lire ton coffre ; il faudra le relier à nouveau.', { danger: true, oui: 'Retirer' }))) return;
+    await api.del(`/api/appareils/${a.id}`);
+    toast('Appareil retiré.');
+    rafraichir();
+  });
+  return h('div', { class: 'page etroite' },
+    h('div', { class: 'headrow' }, h('div', {}, h('h1', { class: 'title', text: 'Extension' }), h('p', { class: 'lede', text: 'L’extension de navigateur remplit tes identifiants sur le site ouvert, quand tu le demandes. Elle déchiffre ton coffre chez elle, avec ton mot de passe maître.' })),
+      h('button', { class: 'btn solid', type: 'button', onclick: relier, disabled: appareils.length >= max }, icone('plus', 15), 'Relier une extension')),
+    h('h2', { class: 'sect', text: 'Appareils reliés' }),
+    appareils.length ? appareils.map(a => h('div', { class: 'reglage-ligne' },
+      h('div', {}, h('strong', { class: 'tronque', text: a.nom }), h('small', { text: `Relié le ${quand(a.cree)} · vu ${quand(a.vu)} · expire le ${quand(a.expire)}` })),
+      h('button', { class: 'btn danger', type: 'button', 'aria-label': `Retirer ${a.nom}`, onclick: retirer(a) }, icone('corbeille', 15), 'Retirer')))
+      : h('div', { class: 'vide', text: 'Aucun appareil relié.' }),
+    h('p', { class: 'hint', text: `Un appareil tombe après 30 jours sans servir, au plus tard 180 jours après sa liaison, et avec toutes tes sessions si tu signales une connexion qui n’était pas toi. ${max} appareils au plus.` }));
 }
 
 coffre = await api.get('/api/coffre');
