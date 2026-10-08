@@ -1,6 +1,7 @@
 // Parcours réel de CODVAULT dans Chromium (clé d'accès virtuelle) : installation
 // par la porte du socle, création du coffre, ajouts, détail, générateur, codes,
-// import, réglages, verrouillage — et contrôle de mise en page à chaque largeur.
+// import, réglages, liaison d'une extension, renouvellement de la clé du
+// coffre, verrouillage — et contrôle de mise en page à chaque largeur.
 //   node outils/vitrine.mjs 8198 &  node outils/parcours-navigateur.mjs http://localhost:8198 JETON DOSSIER
 import { chromium } from 'playwright';
 import fs from 'node:fs';
@@ -110,8 +111,42 @@ await page.getByRole('button', { name: /^Importer 2 éléments$/ }).waitFor();
 await controle('import');
 await page.getByRole('button', { name: /^Importer 2 éléments$/ }).click();
 await page.waitForTimeout(500);
+// Une action sensible demande de confirmer son identité (clé d'accès virtuelle) si la confirmation date.
+async function attendreApres(cible) {
+  const renfort = page.getByRole('dialog', { name: 'Confirme ton identité' });
+  for (let i = 0; i < 100; i++) {
+    if (await cible.isVisible().catch(() => false)) return;
+    if (await renfort.isVisible().catch(() => false)) await renfort.getByRole('button', { name: /Utiliser ma clé|Confirmer/ }).click();
+    await page.waitForTimeout(200);
+  }
+  throw new Error('attente dépassée après une action sensible');
+}
+await aller('Extension', 'Extension');
+await controle('extension-vide');
+await page.getByRole('button', { name: 'Relier une extension' }).click();
+await dialogue().getByLabel('Nom de l’appareil').fill('Firefox du PC');
+await controle('extension-nom');
+await dialogue().getByRole('button', { name: 'Créer le code' }).click();
+await attendreApres(page.getByRole('heading', { name: 'Code de liaison' }));
+const codeLiaison = (await page.locator('.recup').textContent()).trim();
+await controle('extension-code');
+await page.getByRole('button', { name: 'C’est fait' }).click();
+await page.getByText('Firefox du PC').waitFor();
+await controle('extension-liste');
 await aller('Coffre et clés', 'Coffre et clés');
 await controle('cles');
+const avantRotation = await page.evaluate(() => fetch('/api/elements').then(r => r.json()).then(j => j.elements.map(e => e.chiffre)));
+await page.getByRole('button', { name: 'Renouveler', exact: true }).click();
+await dialogue().getByLabel('Mot de passe maître').fill(MAITRE);
+await controle('rotation-confirmer');
+await dialogue().getByRole('button', { name: 'Renouveler', exact: true }).click();
+await attendreApres(page.getByRole('heading', { name: /^Clé renouvelée/ }));
+await controle('rotation-recuperation');
+await page.getByRole('button', { name: 'Je l’ai mise de côté' }).click();
+const apresRotation = await page.evaluate(() => fetch('/api/elements').then(r => r.json()).then(j => j.elements.map(e => e.chiffre)));
+const rotation = apresRotation.length === avantRotation.length && apresRotation.every(c => !avantRotation.includes(c));
+await aller('Extension', 'Extension');
+const appareilsApresRotation = await page.locator('.reglage-ligne').count();
 await aller('Sécurité du compte', 'Sécurité');
 await controle('securite');
 await aller('Comptes', 'Comptes');
@@ -132,8 +167,9 @@ await http.goto(base.replace('localhost', 'codvault.test'));
 const horsContexte = await http.getByRole('heading', { name: 'HTTPS demandé' }).waitFor({ timeout: 10_000 }).then(() => true, () => false);
 
 const defauts = rapport.filter(r => r.defauts.length);
-fs.writeFileSync(`${sortie}/rapport.json`, JSON.stringify({ rapport, erreurs, elementsApresDeverrouillage: n, horsContexte }, null, 2));
+fs.writeFileSync(`${sortie}/rapport.json`, JSON.stringify({ rapport, erreurs, elementsApresDeverrouillage: n, horsContexte, codeLiaison: /^CV1\./.test(codeLiaison), rotation, appareilsApresRotation }, null, 2));
 console.log(`écrans×largeurs contrôlés : ${rapport.length}, avec défauts : ${defauts.length}, erreurs console : ${erreurs.length}, éléments après déverrouillage : ${n}, HTTP hors contexte sûr signalé : ${horsContexte ? 'oui' : 'NON'}`);
+console.log(`code de liaison : ${/^CV1\./.test(codeLiaison) ? 'oui' : 'NON'}, tout rechiffré par le renouvellement : ${rotation ? 'oui' : 'NON'}, appareils après renouvellement : ${appareilsApresRotation}`);
 if (defauts.length) console.log(JSON.stringify(defauts.slice(0, 8).map(d => ({ ecran: d.ecran, largeur: d.largeur, defauts: d.defauts.slice(0, 3) })), null, 1));
 if (erreurs.length) console.log(erreurs.slice(0, 10).join('\n'));
 await navigateur.close();
