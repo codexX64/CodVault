@@ -307,7 +307,7 @@ test('logos : du site lui-même, jamais d’une adresse interne, jamais de SVG',
   assert.equal(await coupe.obtenir('ailleurs.org'), null);
 });
 
-test('balayage : chaque route fermée sans session, chaque écriture fermée au mauvais rôle, l’inconnu introuvable', async () => {
+test('balayage : chaque route fermée sans session, chaque écriture fermée au mauvais rôle, l’inconnu introuvable, rien en trop', async () => {
   const { s } = await coffreDe('admin', admin);
   const el = await C.chiffrerNouveau(s, { nom: 'balayage' });
   ok(await admin.post('/api/elements', el));
@@ -334,6 +334,12 @@ test('balayage : chaque route fermée sans session, chaque écriture fermée au 
   // Routes inconnues, anciennes ou de débogage : 404 ; méthode non prévue : 405.
   for (const chemin of ['/api/debug', '/api/seed', '/api/v1/elements', '/graphql', '/api/elements/x/y/z']) assert.equal((await admin.get(chemin)).status, 404, chemin);
   assert.equal((await admin.req('PATCH', '/api/coffre', {})).status, 405);
+  // Un champ en trop n'atterrit nulle part : refusé, pas ignoré.
+  const intrus = await C.chiffrerNouveau(s, { nom: 'intrus' });
+  assert.equal((await admin.post('/api/elements', { ...intrus, proprietaire: ids.membre })).status, 400);
+  assert.equal((await admin.put(`/api/elements/${el.id}`, { version: 1, chiffre: el.chiffre, version_forcee: 9 })).status, 400);
+  // Un corps au-delà de la limite de sa route : 413, avant toute lecture du schéma.
+  assert.equal((await admin.post('/api/elements', { id: intrus.id, chiffre: `v1.${'A'.repeat(16)}.${'B'.repeat(200_000)}`, cle: intrus.cle })).status, 413);
   ok(await admin.del(`/api/elements/${el.id}`));
 });
 
