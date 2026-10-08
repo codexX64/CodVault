@@ -192,6 +192,25 @@ export async function deverrouiller(motDePasse, coffre, compte) {
   } finally { effacer(brute); }
 }
 
+/**
+ * Pour l'extension : la même ouverture, plus une copie des 32 octets de la clé
+ * du coffre, que l'extension garde dans la mémoire de session du navigateur
+ * (jamais sur disque) le temps choisi, pour rouvrir sans redériver.
+ * `reprendre` refait la session depuis cette copie.
+ */
+export async function deverrouillerAppareil(motDePasse, coffre, compte) {
+  const enveloppe = await deriverEnveloppe(motDePasse, coffre.kdf);
+  let brute;
+  try { brute = await ouvrir(enveloppe, coffre.cle, AAD.coffre(compte)); } catch { throw new Error('Mot de passe maître incorrect.'); }
+  try { return { session: await session(compte, brute, coffre), cle: b64u(brute) }; } finally { effacer(brute); }
+}
+export async function reprendre(cle, coffre, compte) {
+  const brute = deB64u(cle);
+  if (brute.length !== 32) throw new Error('Clé de session illisible.');
+  // Une copie périmée (clé du coffre renouvelée depuis) n'ouvre plus la clé privée : refusée.
+  try { return await session(compte, brute, coffre); } finally { effacer(brute); }
+}
+
 /** Changer de mot de passe maître : la clé du coffre ne change pas, seule son enveloppe. */
 export async function changerMaitre({ ancien, recuperation }, nouveau, coffre, compte) {
   let brute;
