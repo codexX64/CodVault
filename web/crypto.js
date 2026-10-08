@@ -235,6 +235,55 @@ export async function nouvelleRecuperation(motDePasse, coffre, compte) {
   try { return { recuperation: texte, bloc: await sceller(await enveloppeRecuperation(texte), brute, AAD.recuperation(compte)) }; } finally { effacer(brute); effacer(recup); }
 }
 
+/**
+ * Renouveler la clé du coffre (après une fuite possible) : une clé neuve, une
+ * nouvelle clé de récupération (l'ancienne cesse de valoir), la clé privée
+ * rescellée, et chaque élément du compte rechiffré sous une clé d'élément
+ * neuve, réenveloppée pour le compte et pour chacun de ceux qui le reçoivent.
+ * Une ancienne clé du coffre, ou une ancienne clé d'élément, n'ouvre plus rien
+ * de ce que le serveur garde ensuite. La paire d'identité reste : les éléments
+ * reçus d'autres comptes restent lisibles.
+ *   propres : [{ id, version, cle, chiffre, partages: [{ destinataire }] }]
+ *   destinataires : Map id → { id, clePublique }
+ */
+export async function renouvelerCle(motDePasse, coffre, compte, propres, destinataires) {
+  let ancienne;
+  try { ancienne = await ouvrir(await deriverEnveloppe(motDePasse, coffre.kdf), coffre.cle, AAD.coffre(compte)); } catch { throw new Error('Mot de passe maître incorrect.'); }
+  const neuve = aleatoire(32), recup = aleatoire(32);
+  const texte = formaterRecuperation(recup);
+  let pkcs8 = null;
+  try {
+    const vieille = await aes(ancienne), nouvelle = await aes(neuve);
+    pkcs8 = await ouvrir(vieille, coffre.clePrivee, AAD.identite(compte));
+    const kdf = auMoins(coffre.kdf);
+    const elements = [];
+    for (const l of propres) {
+      const brute = await ouvrir(vieille, l.cle, AAD.cle(l.id, compte));
+      let clair;
+      try { clair = await ouvrir(await aes(brute), l.chiffre, AAD.element(l.id)); } finally { effacer(brute); }
+      const cleEl = aleatoire(32);
+      try {
+        const partages = [];
+        for (const p of l.partages || []) {
+          const d = destinataires.get(p.destinataire);
+          if (!d) throw new Error('Un destinataire de partage n’a plus de coffre : retire ce partage d’abord.');
+          partages.push({ destinataire: d.id, cle: await envelopperBrute(cleEl, l.id, d) });
+        }
+        elements.push({ id: l.id, version: l.version, chiffre: await sceller(await aes(cleEl), clair, AAD.element(l.id)), cle: await sceller(nouvelle, cleEl, AAD.cle(l.id, compte)), partages });
+      } finally { effacer(cleEl); effacer(clair); }
+    }
+    const publique = {
+      version: coffre.version, kdf,
+      cle: await sceller(await deriverEnveloppe(motDePasse, kdf), neuve, AAD.coffre(compte)),
+      recuperation: await sceller(await enveloppeRecuperation(texte), neuve, AAD.recuperation(compte)),
+      clePrivee: await sceller(nouvelle, pkcs8, AAD.identite(compte)),
+      preferences: coffre.preferences ? await sceller(nouvelle, await ouvrir(vieille, coffre.preferences, AAD.preferences(compte)), AAD.preferences(compte)) : null,
+      elements,
+    };
+    return { publique, recuperation: texte, session: await session(compte, neuve, { ...coffre, clePrivee: publique.clePrivee }) };
+  } finally { effacer(ancienne); effacer(neuve); effacer(recup); effacer(pkcs8); }
+}
+
 // Les préférences (favoris, verrouillage) : chiffrées elles aussi.
 export const chiffrerPreferences = (s, prefs) => sceller(s.cleCoffre, te.encode(JSON.stringify(prefs)), AAD.preferences(s.compte));
 export async function dechiffrerPreferences(s, bloc) {
@@ -279,15 +328,16 @@ export async function rechiffrer(s, ligne, element) {
 /** La clé de l'élément, enveloppée pour la clé publique d'un autre compte. */
 export async function envelopperPour(s, ligne, destinataire) {
   const brute = await cleBrute(s, ligne);
+  try { return await envelopperBrute(brute, ligne.id, destinataire); } finally { effacer(brute); }
+}
+async function envelopperBrute(brute, id, destinataire) {
+  const dest = await subtle.importKey('spki', deB64u(destinataire.clePublique), ECDH, false, []);
+  const eph = await subtle.generateKey(ECDH, true, ['deriveBits']);
+  const secret = new Uint8Array(await subtle.deriveBits({ name: 'ECDH', public: dest }, eph.privateKey, 256));
   try {
-    const dest = await subtle.importKey('spki', deB64u(destinataire.clePublique), ECDH, false, []);
-    const eph = await subtle.generateKey(ECDH, true, ['deriveBits']);
-    const secret = new Uint8Array(await subtle.deriveBits({ name: 'ECDH', public: dest }, eph.privateKey, 256));
-    try {
-      const k = await hkdf(secret, `codvault/partage/v1/${ligne.id}/${destinataire.id}`);
-      return `e1.${b64u(await subtle.exportKey('spki', eph.publicKey))}.${await sceller(k, brute, AAD.partage(ligne.id, destinataire.id))}`;
-    } finally { effacer(secret); }
-  } finally { effacer(brute); }
+    const k = await hkdf(secret, `codvault/partage/v1/${id}/${destinataire.id}`);
+    return `e1.${b64u(await subtle.exportKey('spki', eph.publicKey))}.${await sceller(k, brute, AAD.partage(id, destinataire.id))}`;
+  } finally { effacer(secret); }
 }
 
 export async function exporterChiffre(elements, motDePasse) {

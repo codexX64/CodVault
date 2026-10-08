@@ -467,6 +467,59 @@ test('appareils : expirés après 30 jours sans servir et 180 jours au plus', ()
   fs.rmSync(dossier, { recursive: true, force: true });
 });
 
+test('clé du coffre renouvelée : tout rechiffré d’un coup, l’ancienne clé n’ouvre plus rien, partages et récupération suivent', async () => {
+  const { client: rot } = await membreInvite(admin, () => new Client(port), { identifiant: 'rot', role: 'membre' });
+  const compte = (await rot.get('/api/coffre')).json.compte;
+  const n = await C.creerCoffre(MAITRE + 'rot', compte);
+  ok(await rot.post('/api/coffre', n.publique));
+  ok(await rot.put('/api/coffre/preferences', { preferences: await C.chiffrerPreferences(n.session, { favoris: ['x'], verrou: 5 }) }));
+  for (const nom of ['Un', 'Deux']) ok(await rot.post('/api/elements', await C.chiffrerNouveau(n.session, { type: 'acces', nom, motDePasse: `mdp-${nom}` })));
+  const { s: sLeo } = await coffreDe('membre', membre);
+  const dests = new Map(ok(await rot.get('/api/destinataires')).destinataires.map(d => [d.id, d]));
+  let lignes = ok(await rot.get('/api/elements')).elements;
+  const partagee = lignes[0];
+  ok(await rot.put(`/api/elements/${partagee.id}/partages`, { destinataire: ids.membre, droits: 'lecture', cle: await C.envelopperPour(n.session, partagee, dests.get(ids.membre)) }));
+  const { jeton } = lireCode(ok(await rot.post('/api/appareils', { nom: 'avant' })).code);
+  lignes = ok(await rot.get('/api/elements')).elements;
+  const coffre = ok(await rot.get('/api/coffre'));
+
+  const r = await C.renouvelerCle(MAITRE + 'rot', coffre, compte, lignes, dests);
+  assert.equal(r.publique.elements.length, 2);
+  // L'envoi doit coller exactement à l'état actuel.
+  assert.equal((await rot.put('/api/coffre/cle', { ...r.publique, version: coffre.version + 1 })).status, 409, 'version du coffre périmée');
+  assert.equal((await rot.put('/api/coffre/cle', { ...r.publique, elements: r.publique.elements.slice(1) })).status, 409, 'un élément manquant');
+  assert.equal((await rot.put('/api/coffre/cle', { ...r.publique, elements: r.publique.elements.map(e => ({ ...e, partages: [] })) })).status, 409, 'un partage oublié');
+  assert.equal((await rot.put('/api/coffre/cle', { ...r.publique, elements: r.publique.elements.map(e => ({ ...e, version: e.version + 1 })) })).status, 409, 'un élément modifié entre-temps');
+  assert.equal((await rot.put('/api/coffre/cle', { ...r.publique, kdf: { ...r.publique.kdf, m: 19456 } })).status, 400, 'dérivation affaiblie');
+  assert.equal((await membre.put('/api/coffre/cle', r.publique)).status, 409, 'pas sur le coffre d’un autre');
+  assert.equal(codvault.db.prepare('SELECT version FROM coffres WHERE compte = ?').get(compte).version, coffre.version, 'rien n’a bougé après les refus');
+  const nouveau = ok(await rot.put('/api/coffre/cle', r.publique));
+
+  // L'ancienne clé du coffre et les anciennes clés d'éléments n'ouvrent plus rien.
+  const apres = ok(await rot.get('/api/elements')).elements;
+  for (const l of apres) {
+    await assert.rejects(C.dechiffrerElement(n.session, l), undefined, 'ancienne clé du coffre');
+    const avant = lignes.find(x => x.id === l.id);
+    await assert.rejects(C.dechiffrerElement(n.session, { ...l, cle: avant.cle }), undefined, 'ancienne clé d’élément');
+    assert.notEqual(l.chiffre, avant.chiffre);
+  }
+  await assert.rejects(C.deverrouiller('pas le bon', nouveau, compte));
+  const s2 = await C.deverrouiller(MAITRE + 'rot', nouveau, compte);
+  assert.deepEqual((await Promise.all(apres.map(l => C.dechiffrerElement(s2, l)))).map(e => e.nom).sort(), ['Deux', 'Un']);
+  assert.deepEqual((await C.dechiffrerPreferences(s2, nouveau.preferences)).favoris, ['x']);
+  assert.ok((await C.dechiffrerElement(r.session, apres[0])).nom);
+  // Le destinataire lit toujours l'élément partagé ; la clé de récupération a changé.
+  const chezLeo = ok(await membre.get('/api/elements')).elements.find(x => x.id === partagee.id);
+  assert.ok((await C.dechiffrerElement(sLeo, chezLeo)).nom);
+  const recup = ok(await rot.get('/api/coffre/recuperation'));
+  await assert.rejects(C.changerMaitre({ recuperation: n.recuperation }, 'x'.repeat(20), { ...nouveau, ...recup }, compte), /incorrecte/);
+  assert.ok(await C.changerMaitre({ recuperation: r.recuperation }, 'nouvelle phrase maîtresse longue', { ...nouveau, ...recup }, compte));
+  // Appareils reliés retirés, autres sessions fermées.
+  assert.equal((await new Client(port).get('/api/appareil/coffre', parAppareil(jeton))).status, 401);
+  codvault.db.prepare("DELETE FROM socle_essais WHERE cle LIKE 'ip:%'").run();
+  assert.equal(codvault.db.prepare('SELECT count(*) n FROM socle_sessions WHERE compte = ?').get(compte).n, 1);
+});
+
 test('un compte effacé part avec son coffre, ses éléments et leurs partages', async () => {
   const c = new Client(port);
   const { client: zoe } = await membreInvite(admin, () => c, { identifiant: 'zoe', role: 'membre' });

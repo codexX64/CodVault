@@ -48,6 +48,16 @@ const S = {
   element: { id: T(22, { requis: true, motif: ID }), chiffre: T(140100, { requis: true, motif: CHIFFRE }), cle: T(90, { requis: true, motif: CLE_ENVELOPPEE }) },
   maj: { version: { ...E(1, Number.MAX_SAFE_INTEGER), requis: true }, chiffre: T(140100, { requis: true, motif: CHIFFRE }) },
   lot: { elements: { type: 'liste', max: 500, requis: true, de: { type: 'objet', champs: { id: T(22, { requis: true, motif: ID }), chiffre: T(140100, { requis: true, motif: CHIFFRE }), cle: T(90, { requis: true, motif: CLE_ENVELOPPEE }) } } } },
+  rotation: {
+    version: { ...E(1, Number.MAX_SAFE_INTEGER), requis: true }, kdf: KDF,
+    cle: T(90, { requis: true, motif: CLE_ENVELOPPEE }), recuperation: T(90, { requis: true, motif: CLE_ENVELOPPEE }),
+    clePrivee: T(400, { requis: true, motif: BLOC(150, 300) }), preferences: T(20000, { motif: BLOC(22, 20000) }),
+    elements: { type: 'liste', max: 100_000, requis: true, de: { type: 'objet', champs: {
+      id: T(22, { requis: true, motif: ID }), version: { ...E(1, Number.MAX_SAFE_INTEGER), requis: true },
+      chiffre: T(140100, { requis: true, motif: CHIFFRE }), cle: T(90, { requis: true, motif: CLE_ENVELOPPEE }),
+      partages: { type: 'liste', max: 1000, requis: true, de: { type: 'objet', champs: { destinataire: T(64, { requis: true, motif: /^[A-Za-z0-9_-]{1,64}$/ }), cle: T(400, { requis: true, motif: CLE_PARTAGEE }) } } },
+    } } },
+  },
   appareil: { nom: T(60, { requis: true, motif: /^[\p{L}\p{N} ._'()-]{1,60}$/u }) },
   partage: { destinataire: T(64, { requis: true, motif: /^[A-Za-z0-9_-]{1,64}$/ }), cle: T(400, { requis: true, motif: CLE_PARTAGEE }), droits: T(10, { requis: true, parmi: ['lecture', 'ecriture'] }) },
 };
@@ -119,6 +129,47 @@ export function creerApi({ socle, db, logos, cfg }) {
     const fait = db.prepare('UPDATE coffres SET kdf = ?, cle = ?, version = version + 1, modifie = ? WHERE compte = ? AND version = ?').run(JSON.stringify(b.kdf), b.cle, maintenant(), s.compte, b.version);
     if (!fait.changes) throw new ErreurHttp(409, 'Ton coffre a changé entre-temps : déverrouille-le à nouveau.');
     tracer(ctx, s, 'coffre.kdf_renforce', null, { avant: kdfJournal(avant), apres: kdfJournal(b.kdf) });
+    return vueCoffre(coffreDe(s.compte));
+  });
+  // Renouveler la clé du coffre : tout ce que le compte possède, rechiffré d'un
+  // coup, ou rien. L'ensemble envoyé doit être exactement l'état actuel (mêmes
+  // éléments, mêmes versions, mêmes destinataires) : un changement entre-temps
+  // fait tout refuser. Les autres sessions et les appareils reliés tombent.
+  r.put('/api/coffre/cle', async ctx => {
+    const s = session(ctx, { renfort: true });
+    const c = exigerCoffre(s.compte);
+    const b = await corps(ctx, S.rotation, (cfg.maxMio * 2 + 2) * 1024 * 1024);
+    const change = () => new ErreurHttp(409, 'Ton coffre a changé entre-temps : recharge et recommence.');
+    if (b.version !== c.version) throw change();
+    const avant = JSON.parse(c.kdf);
+    if (PARAMS_KDF.some(x => b.kdf[x] < avant[x])) throw new ErreurHttp(400, 'Paramètres plus faibles : refusé.');
+    const propres = db.prepare('SELECT id, version FROM elements WHERE proprietaire = ?').all(s.compte);
+    const recus = new Map(b.elements.map(e => [e.id, e]));
+    if (recus.size !== b.elements.length || recus.size !== propres.length || propres.some(p => recus.get(p.id)?.version !== p.version)) throw change();
+    const lirePartages = db.prepare('SELECT destinataire FROM partages WHERE element = ?');
+    for (const p of propres) {
+      const actuels = lirePartages.all(p.id).map(x => x.destinataire).sort();
+      const envoyes = recus.get(p.id).partages.map(x => x.destinataire).sort();
+      if (actuels.length !== envoyes.length || actuels.some((d, i) => d !== envoyes[i])) throw change();
+    }
+    if (b.elements.reduce((n, e) => n + taille(e), 0) > cfg.maxMio * 1024 * 1024) throw new ErreurHttp(409, `Plafond atteint : ${cfg.maxMio} Mio par coffre.`);
+    const t = maintenant();
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const fait = db.prepare('UPDATE coffres SET kdf = ?, cle = ?, recuperation = ?, cle_privee = ?, preferences = ?, version = version + 1, modifie = ? WHERE compte = ? AND version = ?')
+        .run(JSON.stringify(b.kdf), b.cle, b.recuperation, b.clePrivee, b.preferences ?? null, t, s.compte, c.version);
+      if (!fait.changes) throw change();
+      const majElement = db.prepare('UPDATE elements SET chiffre = ?, cle = ?, version = version + 1, modifie = ?, modifie_par = ? WHERE id = ? AND proprietaire = ? AND version = ?');
+      const majPartage = db.prepare('UPDATE partages SET cle = ? WHERE element = ? AND destinataire = ?');
+      for (const e of b.elements) {
+        if (!majElement.run(e.chiffre, e.cle, t, s.compte, e.id, s.compte, e.version).changes) throw change();
+        for (const p of e.partages) if (!majPartage.run(p.cle, e.id, p.destinataire).changes) throw change();
+      }
+      db.prepare('DELETE FROM socle_sessions WHERE compte = ? AND id <> ?').run(s.compte, s.id);
+      db.exec('COMMIT');
+    } catch (e) { db.exec('ROLLBACK'); throw e; }
+    const retires = appareils.retirerTout(s.compte);
+    tracer(ctx, s, 'coffre.cle_renouvelee', null, { elements: b.elements.length, appareils: retires, ...kdfJournal(b.kdf) });
     return vueCoffre(coffreDe(s.compte));
   });
   // La clé du coffre enveloppée par la clé de récupération : n'aide que qui tient la clé imprimée. Sous renfort.
