@@ -20,6 +20,8 @@ export const DELAI_DEFAUT = 5;
 export const PRESSE_SECONDES = 30;
 
 const CODE = /^CV1\.([A-Za-z0-9_-]{8,400})\.(cvd_[A-Za-z0-9_-]{43})$/;
+// Le serveur : en HTTPS, ou sur la boucle locale pour l'essai. Les sites remplis : en HTTPS seulement.
+const serveurSur = u => u.protocol === 'https:' || (u.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(u.hostname));
 
 /** Le code collé : l'origine du serveur (HTTPS, ou localhost pour l'essai) et le jeton. */
 export function lireCode(texte) {
@@ -27,8 +29,7 @@ export function lireCode(texte) {
   if (!m) throw new Error('Ce n’est pas un code de liaison CODVAULT.');
   let u;
   try { u = new URL(new TextDecoder().decode(Uint8Array.from(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)))); } catch { throw new Error('Adresse du serveur illisible.'); }
-  const local = ['localhost', '127.0.0.1'].includes(u.hostname);
-  if (u.protocol !== 'https:' && !(local && u.protocol === 'http:')) throw new Error('Le serveur doit être en HTTPS.');
+  if (!serveurSur(u)) throw new Error('Le serveur doit être en HTTPS.');
   if (u.username || u.password || u.pathname !== '/' || u.search || u.hash) throw new Error('Adresse du serveur inattendue.');
   return { origine: u.origin, jeton: m[2] };
 }
@@ -52,7 +53,7 @@ async function lire(l, chemin) {
   if (!r.ok) throw new Error(j.error || `Le serveur a répondu ${r.status}.`);
   return j;
 }
-export const lireCoffre = l => lire(l, '/api/appareil/coffre');
+const lireCoffre = l => lire(l, '/api/appareil/coffre');
 
 /** Vérifie un jeton tout juste collé. */
 export const essayer = (serveur, jeton) => lireCoffre({ serveur, jeton });
@@ -106,9 +107,7 @@ export async function elements(l, s) {
 export function hoteDe(url) {
   try {
     const u = new URL(url);
-    const local = ['localhost', '127.0.0.1'].includes(u.hostname);
-    if (u.protocol !== 'https:' && !(local && u.protocol === 'http:')) return null;
-    return u.hostname.toLowerCase().replace(/^www\./, '');
+    return u.protocol === 'https:' ? u.hostname.toLowerCase().replace(/^www\./, '') : null;
   } catch { return null; }
 }
 /** Un élément vaut pour un site si son domaine est celui du site, ou un domaine parent (exemple.org vaut pour compte.exemple.org). */
@@ -118,11 +117,12 @@ export function convient(e, hote) {
 }
 export const pourLeSite = (liste, hote) => liste.filter(e => e.type !== 'note' && convient(e, hote));
 
-export async function code(e) {
-  if (!e.totp) return '';
-  try { return await C.codeTotp(C.lireTotp(e.totp)); } catch { return ''; }
-}
+/** Les paramètres A2F d'un élément, ou null (aucun secret, ou secret illisible). */
 export const totp = e => { try { return e.totp ? C.lireTotp(e.totp) : null; } catch { return null; } };
+export async function code(e) {
+  const p = totp(e);
+  return p ? C.codeTotp(p) : '';
+}
 
 /**
  * Remplir, dans le cadre principal de l'onglet seulement, après avoir revérifié
@@ -144,11 +144,10 @@ export async function remplirOnglet(onglet, e) {
 }
 
 // Exécutée dans la page (monde isolé de l'extension) : autonome, sans rien d'extérieur.
-export function remplirDansLaPage(domaine, identifiant, motDePasse, codeA2f) {
+function remplirDansLaPage(domaine, identifiant, motDePasse, codeA2f) {
   const hote = location.hostname.toLowerCase().replace(/^www\./, '');
-  const local = ['localhost', '127.0.0.1'].includes(location.hostname);
   if (window.top !== window) return { ok: false, raison: 'Cadre intégré : refusé.' };
-  if (location.protocol !== 'https:' && !(local && location.protocol === 'http:')) return { ok: false, raison: 'Page sans HTTPS : refusé.' };
+  if (location.protocol !== 'https:') return { ok: false, raison: 'Page sans HTTPS : refusé.' };
   if (!(hote === domaine || hote.endsWith('.' + domaine))) return { ok: false, raison: 'La page a changé de site : refusé.' };
   const visible = el => {
     const r = el.getBoundingClientRect(), st = getComputedStyle(el);

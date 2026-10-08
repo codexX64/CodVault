@@ -10,26 +10,24 @@ navigateur.alarms.onAlarm.addListener(async a => {
 });
 navigateur.idle.onStateChanged.addListener(etat => { if (etat === 'locked') verrouiller(); });
 
-navigateur.runtime.onMessage.addListener((m, envoyeur) => {
-  if (envoyeur.id !== navigateur.runtime.id || envoyeur.tab) return;
-  if (m?.quoi === 'copie') navigateur.alarms.create('presse', { delayInMinutes: PRESSE_SECONDES / 60 });
+navigateur.runtime.onMessage.addListener((m, envoyeur, repondre) => {
+  if (envoyeur.id !== navigateur.runtime.id || envoyeur.tab || m?.quoi !== 'copie') return;
+  navigateur.alarms.create('presse', { delayInMinutes: PRESSE_SECONDES / 60 });
+  repondre(true);
 });
 
 async function viderPresse() {
-  if (navigateur.offscreen) {
-    if (!(await navigateur.offscreen.hasDocument?.())) {
-      await navigateur.offscreen.createDocument({ url: 'presse.html', reasons: ['CLIPBOARD'], justification: 'Effacer un mot de passe copié.' });
-    }
-    await navigateur.runtime.sendMessage({ quoi: 'vider-presse' }).catch(() => {});
-    await navigateur.offscreen.closeDocument().catch(() => {});
-  } else {
-    await navigator.clipboard.writeText('').catch(() => {});
+  if (!navigateur.offscreen) return navigator.clipboard.writeText('');
+  if (!(await navigateur.offscreen.hasDocument())) {
+    await navigateur.offscreen.createDocument({ url: 'presse.html', reasons: ['CLIPBOARD'], justification: 'Effacer un mot de passe copié.' });
   }
+  try { await navigateur.runtime.sendMessage({ quoi: 'vider-presse' }); } finally { await navigateur.offscreen.closeDocument(); }
 }
 
 navigateur.commands.onCommand.addListener(async (commande, ongletDonne) => {
   if (commande !== 'remplir') return;
   const onglet = ongletDonne ?? (await navigateur.tabs.query({ active: true, currentWindow: true }))[0];
+  // Sans fenêtre de navigateur au premier plan, la fenêtre de l'extension ne peut pas s'ouvrir : le raccourci ne fait alors rien.
   const ouvrir = () => navigateur.action.openPopup?.().catch(() => {});
   try {
     const l = await liaison();

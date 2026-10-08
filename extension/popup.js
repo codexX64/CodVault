@@ -3,7 +3,7 @@
 // avec la fenêtre. Rien n'est injecté comme balisage : tout passe par h().
 import {
   navigateur, lireCode, motifHote, liaison, lier, delier, choisirDelai, essayer, ouvrirAvec, reprendre, verrouiller,
-  elements as lireElements, hoteDe, convient, pourLeSite, remplirOnglet, totp, DELAIS, C,
+  elements as lireElements, hoteDe, convient, pourLeSite, remplirOnglet, totp, DELAIS, PRESSE_SECONDES, C,
 } from './coeur.js';
 
 const app = document.getElementById('app');
@@ -104,8 +104,10 @@ async function ecranCoffre(l, s) {
 
   const copier = async (texte, quoi) => {
     try { await navigator.clipboard.writeText(texte); } catch { return note('Copie refusée.', true); }
-    navigateur.runtime.sendMessage({ quoi: 'copie' }).catch(() => {});
-    note(`${quoi} copié — effacé dans 30 s.`);
+    try {
+      await navigateur.runtime.sendMessage({ quoi: 'copie' });
+      note(`${quoi} copié — effacé dans ${PRESSE_SECONDES} s.`);
+    } catch { note(`${quoi} copié, mais l’effacement automatique n’a pas pu être programmé : vide le presse-papiers toi-même.`, true); }
   };
   const remplir = async e => {
     try {
@@ -138,7 +140,7 @@ async function ecranCoffre(l, s) {
 
   const recherche = h('input', { type: 'search', placeholder: 'Rechercher', 'aria-label': 'Rechercher dans le coffre', autocomplete: 'off' });
   const tous = h('div', { class: 'liste' });
-  const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const filtrer = () => {
     const q = norm(recherche.value);
     const l2 = q ? acces.filter(e => norm(`${e.nom} ${e.identifiant} ${e.url}`).includes(q)) : acces;
