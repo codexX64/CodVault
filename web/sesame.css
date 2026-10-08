@@ -1,0 +1,104 @@
+/* SÉSAME : ce que SOMA (socle/web/soma.css) ne porte pas déjà. Typographie
+ * d'abord : des lignes, pas des cartes ; une couleur seulement pour ce qui
+ * demande d'agir (à renforcer, réutilisé). */
+.page.etroite{max-width:760px}
+.mt0{margin-top:0}.mt12{margin-top:12px}
+.grow1{min-width:0;flex:1}
+.sect{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:30px 0 6px}
+.reglage-ligne{display:flex;align-items:center;gap:14px;padding:13px 0;border-top:1px solid var(--hair)}
+.reglage-ligne>div{flex:1;min-width:0}
+.reglage-ligne strong{display:block;font-size:13.5px}
+.reglage-ligne small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.reglage-ligne .toggle,.reglage-ligne .btn,.reglage-ligne select{flex:none}
+.field.court{width:auto;min-width:110px}
+
+/* Outils du coffre */
+.outils{display:flex;gap:10px;align-items:center;margin:4px 0 14px}
+.recherche{flex:1;min-width:0;display:flex;align-items:center;gap:9px;padding:0 12px;border:1px solid var(--hair);border-radius:var(--r-ctl);background:var(--surface);color:var(--muted)}
+.recherche .field{border:0;background:none;box-shadow:none;padding-left:0;min-width:0}
+.recherche:focus-within{border-color:var(--accent)}
+.field.espace{width:auto;max-width:42%}
+.onglets{display:flex;gap:4px 18px;flex-wrap:wrap;border-bottom:1px solid var(--hair);margin-bottom:6px}
+.onglet{background:none;border:0;padding:9px 0 11px;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;display:inline-flex;gap:7px;align-items:center}
+.onglet.on{color:var(--ink);border-bottom-color:var(--accent)}
+.onglet em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+/* Lignes */
+.elements{display:flex;flex-direction:column}
+.el{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--hair-soft)}
+.el-corps{flex:1;min-width:0;display:grid;grid-template-columns:auto minmax(0,1.3fr) minmax(0,1fr) 200px;gap:14px;align-items:center;padding:12px 6px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;border-radius:8px}
+.el-corps:hover{background:var(--wash)}
+.el-nom{display:flex;flex-direction:column;min-width:0}
+.el-nom b{font-weight:550;font-size:14px}
+.el-nom small{color:var(--muted);font-size:12.5px}
+.el-site{color:var(--faint);font-size:12px}
+.el-puces{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.el-copie{flex:none;width:34px;height:34px;display:grid;place-items:center}
+.etoile{flex:none;width:34px;height:34px;display:grid;place-items:center;background:none;border:0;color:var(--faint);cursor:pointer;border-radius:8px}
+.etoile:hover{color:var(--ink-soft);background:var(--wash)}
+.etoile.on{color:var(--accent)}
+.etoile.on svg{fill:currentColor}
+.vide{padding:44px 12px;text-align:center;color:var(--muted);font-size:13.5px}
+.tronque{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Logos : initiales colorées d'après le domaine, le logo du site par-dessus s'il arrive */
+.logo{--teinte:220;position:relative;flex:none;display:grid;place-items:center;border-radius:10px;overflow:hidden;
+  background:hsl(var(--teinte) 60% 94%);color:hsl(var(--teinte) 55% 34%);font-weight:600}
+.logo.m{width:36px;height:36px;font-size:15px}
+.logo.l{width:46px;height:46px;font-size:19px;border-radius:12px}
+.logo img{position:absolute;inset:0;margin:auto;width:62%;height:62%;object-fit:contain;opacity:0}
+.logo.a-image{background:var(--surface);box-shadow:inset 0 0 0 1px var(--hair)}
+.logo.a-image img{opacity:1}
+.logo.a-image .ini{visibility:hidden}
+.logo.note{background:var(--wash);color:var(--ink-soft)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo{background:hsl(var(--teinte) 30% 18%);color:hsl(var(--teinte) 70% 78%)}}
+:root[data-theme="dark"] .logo,html:root[data-gamme="console"] .logo{background:hsl(var(--teinte) 30% 18%);color:hsl(var(--teinte) 70% 78%)}
+
+/* Détail */
+.det-tete{display:flex;gap:14px;align-items:center;margin-bottom:10px}
+.det-tete b{display:block;font-size:18px;font-weight:600;letter-spacing:-.01em}
+.det-tete small{color:var(--muted);font-size:12.5px}
+.det{padding:10px 0;border-top:1px solid var(--hair-soft)}
+.det .lbl{display:block;margin-bottom:3px}
+.det-val{display:flex;align-items:center;gap:4px;min-width:0}
+.det-val .val{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px}
+.det-val .ghost{flex:none;width:32px;height:32px;display:grid;place-items:center}
+pre.notes{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:13.5px;color:var(--ink-soft)}
+.code{font-size:22px;letter-spacing:.08em;font-weight:500}
+.bar.fine{height:3px;margin-top:6px}
+.bar i[data-bas="true"]{background:var(--alarm)}
+
+/* Codes A2F */
+.code-ligne .el-corps{grid-template-columns:auto minmax(0,1fr)}
+.code-bloc{flex:none;width:150px;text-align:right}
+
+/* Générateur */
+.genere{font-size:22px;line-height:1.5;padding:20px 0 6px;overflow-wrap:anywhere;letter-spacing:.02em;border-bottom:1px solid var(--hair)}
+.reglages input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0 8px}
+
+/* Clé de récupération, empreintes */
+.recup+.actions{margin-bottom:16px}
+.recup{font-size:17px;line-height:1.8;letter-spacing:.04em;padding:16px 18px;border:1px dashed var(--hair);border-radius:var(--r-carte);background:var(--wash);overflow-wrap:anywhere;margin:6px 0 12px}
+.empreinte{font-size:15px;letter-spacing:.06em;margin:4px 0}
+.partages .row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--hair-soft)}
+
+/* Les colonnes ont la même largeur d'une ligne à l'autre : chaque ligne est
+   sa propre grille, une colonne « auto » les décalerait. */
+@container stage (max-width:760px){.el-corps{grid-template-columns:auto minmax(0,1.3fr) minmax(0,1fr)}}
+@container stage (max-width:520px){
+  .el-corps{grid-template-columns:auto minmax(0,1fr);gap:12px}
+  .outils{flex-wrap:wrap}
+  .outils .recherche{flex-basis:100%}
+  .outils .field.espace{max-width:none;width:100%}
+}
+@media (max-width:720px){
+  .code-bloc{width:112px}
+  .code{font-size:18px}
+}
+
+/* Groupe d'actions sur écran étroit : empilées pleine largeur, la principale
+   en haut, plutôt qu'un bouton seul à la ligne. */
+@media (max-width:520px){
+  .actions.pile{flex-direction:column;align-items:stretch;width:100%}
+  .actions.pile>.btn{justify-content:center}
+}

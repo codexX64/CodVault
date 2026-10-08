@@ -1,0 +1,90 @@
+SÉSAME — CE QUE LE SERVICE GARDE, ET POURQUOI
+
+SÉSAME est installé et exploité par la personne qui l'héberge : c'est elle qui
+répond de ces données. Ce texte dit ce que le logiciel conserve, ce qu'il
+envoie ailleurs, ce qu'il voit malgré le chiffrement, et comment chacun exerce
+ses droits.
+
+1. CE QUI EST CONSERVÉ
+
+Compte
+  - identifiant, nom affiché, rôle, dates de création et de dernière connexion ;
+  - empreinte Argon2id du mot de passe de connexion (jamais le mot de passe),
+    secret TOTP chiffré, clés publiques des clés d'accès avec leur nom,
+    empreintes des codes de secours ;
+  - adresse d'alerte, si la personne en a vérifié une.
+  Finalité : se connecter et protéger le compte. Durée : tant que le compte existe.
+
+Sessions
+  - appareil (navigateur et système, sans empreinte), adresse IP, dates.
+  Finalité : lister et fermer ses appareils. Durée : douze heures au plus,
+  une heure sans activité.
+
+Événements de sécurité
+  - connexions, échecs, changements de facteurs, refus, avec l'adresse IP ;
+  - pour le coffre : création, changement du mot de passe maître, clé de
+    récupération lue ou refaite, éléments ajoutés, modifiés, supprimés,
+    partagés — l'identifiant de l'élément, jamais son contenu.
+  Finalité : détecter un abus et répondre à un incident. Durée : cinquante
+  derniers événements par compte ; journal du service : 365 jours.
+
+Coffre
+  - des blocs chiffrés dans le navigateur (AES-256-GCM), la clé du coffre
+    enveloppée par le mot de passe maître (étiré par Argon2id) et par la clé
+    de récupération, la clé publique de partage et son empreinte ;
+  - le mot de passe maître et la clé de récupération ne quittent jamais le
+    navigateur : le serveur ne peut lire ni les mots de passe, ni les notes,
+    ni les secrets A2F, ni les favoris, ni les réglages.
+  Finalité : garder et synchroniser le coffre. Durée : jusqu'à ce que la
+  personne supprime ses éléments, ou que son compte le soit.
+
+2. CE QUE LE SERVEUR VOIT MALGRÉ LE CHIFFREMENT
+
+  - Le nombre d'éléments, leur taille chiffrée, quand ils changent, et avec
+    quels comptes chacun est partagé.
+  - Les logos : quand le navigateur affiche le logo d'un site, il demande ce
+    nom de domaine au serveur, avec la session. Le serveur voit donc, à ce
+    moment-là, quel compte demande quel domaine. Il ne l'écrit nulle part : ni
+    dans le journal, ni avec le compte. Le logo est gardé dans un cache commun
+    (trente jours, sept pour un échec), sans lien avec qui l'a demandé ; un
+    autre compte de la même instance peut toutefois deviner, à la rapidité de
+    la réponse, qu'un logo y était déjà.
+  - L'exploitant peut couper les logos (SESAME_LOGOS=non) : plus aucune
+    demande ne part, chaque site garde ses initiales.
+
+3. CE QUI PART AILLEURS
+
+  - Les sites dont un logo est demandé reçoivent, depuis l'adresse du serveur
+    (jamais celle de la personne), une requête pour leur page d'accueil et
+    leurs icônes. Aucun service tiers d'icônes n'est utilisé.
+  - Le relais SMTP de l'exploitant, s'il est configuré, transmet les alertes
+    de sécurité à l'adresse vérifiée.
+  Aucune mesure d'audience, aucun traceur, aucune publicité.
+
+4. COOKIES
+
+  Un cookie de session, indispensable à la connexion, et un cookie de
+  cérémonie de cinq minutes pendant une connexion par clé d'accès. Aucun autre.
+
+5. DROITS
+
+  - Accès et portabilité : page Sécurité, « Exporter mes données » (le coffre
+    tel qu'il est stocké, chiffré) ; page « Importer, exporter » pour un
+    export lisible avec le mot de passe maître.
+  - Rectification : facteurs et adresse d'alerte depuis la page Sécurité ;
+    nom affiché et rôle, auprès de l'exploitant.
+  - Effacement : chaque élément se supprime depuis le coffre ; le compte, son
+    coffre, ses éléments et leurs partages, depuis la page Sécurité,
+    « Supprimer mon compte » (une confirmation récente est demandée), ou par
+    un administrateur.
+  - Toute demande : auprès de l'exploitant de cette instance.
+
+6. SÉCURITÉ ET INCIDENTS
+
+  Les mesures techniques et la conduite à tenir en cas d'incident, y compris
+  la notification d'une violation de données dans les 72 heures, sont décrites
+  dans SECURITY.md, dans le dépôt du projet.
+
+SÉSAME n'est pas destiné aux mineurs. Il ne traite en clair aucune catégorie
+particulière de données : ce qu'une personne écrit dans son coffre reste
+chiffré, illisible pour le serveur.
