@@ -8,7 +8,8 @@ import { chevauchements, LARGEURS } from '../socle/essai/mise-en-page.mjs';
 
 const [base, jeton, sortie = '/tmp/captures-sesame'] = process.argv.slice(2);
 fs.mkdirSync(sortie, { recursive: true });
-const navigateur = await chromium.launch();
+// sesame.test : un nom qui n'est pas localhost, pour voir SÉSAME servi en HTTP hors contexte sûr.
+const navigateur = await chromium.launch({ args: ['--host-resolver-rules=MAP sesame.test 127.0.0.1'] });
 const contexte = await navigateur.newContext({ viewport: { width: 1280, height: 860 }, permissions: ['clipboard-read', 'clipboard-write'] });
 const page = await contexte.newPage();
 const erreurs = [];
@@ -125,10 +126,14 @@ await page.getByRole('heading', { name: 'Comptes', exact: true }).waitFor();
 await aller('Tout le coffre', 'Mon coffre');
 await page.waitForTimeout(400);
 const n = await page.locator('.el').count();
+// En HTTP sous un vrai nom, aucun coffre ne s'ouvre : SÉSAME doit le dire au lieu d'échouer en silence.
+const http = await navigateur.newPage();
+await http.goto(base.replace('localhost', 'sesame.test'));
+const horsContexte = await http.getByRole('heading', { name: 'HTTPS demandé' }).waitFor({ timeout: 10_000 }).then(() => true, () => false);
 
 const defauts = rapport.filter(r => r.defauts.length);
-fs.writeFileSync(`${sortie}/rapport.json`, JSON.stringify({ rapport, erreurs, elementsApresDeverrouillage: n }, null, 2));
-console.log(`écrans×largeurs contrôlés : ${rapport.length}, avec défauts : ${defauts.length}, erreurs console : ${erreurs.length}, éléments après déverrouillage : ${n}`);
+fs.writeFileSync(`${sortie}/rapport.json`, JSON.stringify({ rapport, erreurs, elementsApresDeverrouillage: n, horsContexte }, null, 2));
+console.log(`écrans×largeurs contrôlés : ${rapport.length}, avec défauts : ${defauts.length}, erreurs console : ${erreurs.length}, éléments après déverrouillage : ${n}, HTTP hors contexte sûr signalé : ${horsContexte ? 'oui' : 'NON'}`);
 if (defauts.length) console.log(JSON.stringify(defauts.slice(0, 8).map(d => ({ ecran: d.ecran, largeur: d.largeur, defauts: d.defauts.slice(0, 3) })), null, 1));
 if (erreurs.length) console.log(erreurs.slice(0, 10).join('\n'));
 await navigateur.close();
