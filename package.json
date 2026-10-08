@@ -1,6 +1,6 @@
 {
   "name": "codvault",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Gestionnaire de mots de passe à connaissance nulle : coffre chiffré dans le navigateur, codes A2F, notes, partage chiffré entre comptes — sous le Hub, sur le socle commun.",
   "type": "module",
   "private": true,

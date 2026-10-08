@@ -6,7 +6,7 @@
     "component": {
       "type": "application",
       "name": "codvault",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "licenses": [
         {
           "license": {
