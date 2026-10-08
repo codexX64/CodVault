@@ -64,7 +64,8 @@ export function creerApi({ socle, db, logos, cfg }) {
   const exigerCoffre = compte => { const c = coffreDe(compte); if (!c) throw new ErreurHttp(409, 'Crée d’abord ton coffre.'); return c; };
   const element = id => db.prepare('SELECT * FROM elements WHERE id = ?').get(id);
   const partage = (id, compte) => db.prepare('SELECT * FROM partages WHERE element = ? AND destinataire = ?').get(id, compte);
-  const nomDe = id => { try { return comptes.publicDe(db.prepare('SELECT * FROM socle_comptes WHERE id = ?').get(id))?.identifiant || '?'; } catch { return '?'; } };
+  // « ? » : le compte vient d'être effacé, ses partages partent avec lui.
+  const nomDe = id => db.prepare('SELECT identifiant FROM socle_comptes WHERE id = ?').get(id)?.identifiant ?? '?';
 
   r.get('/api/health', () => ({ ok: true }), { public: true });
   r.get('/api/version', ctx => { session(ctx); return { version: VERSION, logos: cfg.logos === 'oui' }; });
@@ -268,6 +269,5 @@ export function creerApi({ socle, db, logos, cfg }) {
       if (reponse !== undefined) repondreJson(ctx.res, 200, reponse, { 'Cache-Control': 'no-store' });
       return true;
     },
-    routeur: r,
   };
 }
