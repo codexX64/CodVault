@@ -13,10 +13,6 @@ import * as C from '/crypto.js';
 appliquerTheme();
 const SERVICE = 'SÉSAME';
 const api = new Api({ surDeconnexion: () => location.reload() });
-const etatPorte = await porte({ api, service: SERVICE, sousTitre: 'coffre de mots de passe' });
-const moi = etatPorte.session.compte;
-const admin = moi.role === 'admin';
-const membre = admin || moi.role === 'membre';
 
 ajouterPictos({
   coffre: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.6"/><circle cx="12" cy="12" r="3.4"/><path d="M12 8.6v1.2M12 14.2v1.2M8.6 12h1.2M14.2 12h1.2M6.5 19.5v1.5M17.5 19.5v1.5"/>',
@@ -33,6 +29,20 @@ ajouterPictos({
   rafraichir: '<path d="M19.5 7v4.5H15M4.5 17v-4.5H9"/><path d="M5.5 9.5a7 7 0 0 1 12.5-1.9l1.5 3.9M4.5 12.5l1.5 3.9a7 7 0 0 0 12.5-1.9"/>',
   liste: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
 });
+
+// En HTTP ailleurs que sur localhost, le navigateur ne donne pas WebCrypto : aucun coffre ne peut s'ouvrir.
+if (!globalThis.isSecureContext || !globalThis.crypto?.subtle) {
+  document.body.replaceChildren(h('div', { class: 'porte' }, h('div', { class: 'halos', 'aria-hidden': 'true' }, h('i'), h('i')),
+    h('div', { class: 'wiz' },
+      h('div', { class: 'whead' }, h('div', { class: 'brand' }, h('div', { class: 'g' }, icone('coffre', 18)), h('div', {}, h('b', { text: SERVICE })))),
+      h('div', { class: 'wbody' }, h('h1', { text: 'HTTPS demandé' }),
+        h('p', { class: 'sub', text: 'Le navigateur ne chiffre qu’en HTTPS, ou sur localhost : ouvre SÉSAME par son adresse en https://, celle du relais ou celle que le Hub publie.' })))));
+  await new Promise(() => {});
+}
+const etatPorte = await porte({ api, service: SERVICE, sousTitre: 'coffre de mots de passe' });
+const moi = etatPorte.session.compte;
+const admin = moi.role === 'admin';
+const membre = admin || moi.role === 'membre';
 
 const sur = fn => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message, true); } };
 const quand = t => new Date(t).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
