@@ -90,7 +90,12 @@ function jaugeMaitre(input) {
   });
   return h('div', {}, h('div', { class: 'force', 'aria-hidden': 'true' }, barre), txt);
 }
-const deconnexion = async () => { verrouillerMemoire(); await api.post('/api/compte/deconnexion').catch(() => {}); location.reload(); };
+const deconnexion = async () => {
+  verrouillerMemoire();
+  // Sans confirmation du serveur, la session peut vivre encore : on le dit, le coffre reste verrouillé.
+  try { await api.post('/api/compte/deconnexion'); } catch (e) { deverrouillage(); return toast(`Déconnexion non confirmée : ${e.message}`, true); }
+  location.reload();
+};
 
 async function creation() {
   const err = h('p', { class: 'erreur', role: 'alert' });
@@ -202,7 +207,9 @@ async function copier(texte, message = 'Copié', secondes = prefs.presse || 30) 
   try { await navigator.clipboard.writeText(texte); } catch { return toast('Copie refusée par le navigateur.', true); }
   toast(`${message} — effacé du presse-papiers dans ${secondes} s.`);
   clearTimeout(effacement);
-  effacement = setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), secondes * 1000);
+  // Le navigateur refuse d'écrire dans le presse-papiers d'un onglet sans focus : l'effacement attend alors son retour.
+  const vider = () => navigator.clipboard.writeText('').catch(() => addEventListener('focus', vider, { once: true }));
+  effacement = setTimeout(vider, secondes * 1000);
 }
 function fichier(nom, contenu, type) {
   const a = h('a', { href: URL.createObjectURL(new Blob([contenu], { type })), download: nom });
