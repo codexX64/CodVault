@@ -1,0 +1,15 @@
+# Données : jamais dans le dépôt.
+/data/
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets.
+.env
+.env.local
+*.key
+*.pem
+
+node_modules
+*.log
+.DS_Store
