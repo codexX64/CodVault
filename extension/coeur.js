@@ -133,14 +133,14 @@ export async function remplirOnglet(onglet, e) {
   const actuel = await navigateur.tabs.get(onglet.id);
   const hote = hoteDe(actuel.url);
   if (!convient(e, hote)) throw new Error('Cet élément n’est pas pour ce site.');
-  const [r] = await navigateur.scripting.executeScript({
+  const [injection] = await navigateur.scripting.executeScript({
     target: { tabId: onglet.id, frameIds: [0] },
     func: remplirDansLaPage,
     args: [C.domaineDe(e.url), e.identifiant || '', e.motDePasse || '', await code(e)],
   });
-  const res = r?.result;
-  if (!res?.ok) throw new Error(res?.raison || 'Aucun champ à remplir sur cette page.');
-  return res.fait;
+  const bilan = injection?.result;
+  if (!bilan?.ok) throw new Error(bilan?.raison || 'Aucun champ à remplir sur cette page.');
+  return bilan.fait;
 }
 
 // Exécutée dans la page (monde isolé de l'extension) : autonome, sans rien d'extérieur.
