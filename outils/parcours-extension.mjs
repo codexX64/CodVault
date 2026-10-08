@@ -183,6 +183,23 @@ try {
   etape('cadre intégré d’un autre site laissé vide', dansCadre === '');
   await page.screenshot({ path: `${sortie}/4-rempli.png` });
 
+  // 3 bis. Un mot de passe copié quitte le presse-papiers 30 secondes plus tard.
+  await contexte.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: SITE });
+  pop.fermer();
+  pop = await fenetre();
+  await pop.attendre("document.querySelector('.liste .el')", 20000);
+  await pop.clic('.liste .el button[title="Copier le mot de passe"]');
+  await pop.attendre("document.querySelector('.note')?.textContent.includes('copié')", 5000);
+  const noteCopie = await pop.texte('.note');
+  await pop.eval('window.close()').catch(() => {});
+  pop.fermer();
+  await page.bringToFront();
+  const copie = await page.evaluate(() => navigator.clipboard.readText());
+  etape('mot de passe copié, effacement annoncé', copie === 'Mdp-du-site-9!' && noteCopie.includes('effacé dans 30 s'), noteCopie);
+  await page.waitForTimeout(36_000);
+  const ensuite = await page.evaluate(() => navigator.clipboard.readText());
+  etape('presse-papiers vidé après 30 s', ensuite.trim() === '', JSON.stringify(ensuite));
+
   // 4. La page change d'adresse entre l'ouverture de la fenêtre et le clic : rien n'est posé.
   await page.goto(`${SITE}/connexion`);
   pop = await fenetre();
@@ -210,6 +227,7 @@ try {
   await pop.attendre("document.querySelector('#maitre')");
   const apres = await fond.evaluate(() => chrome.storage.session.get(null));
   etape('verrouiller efface la clé gardée', Object.keys(apres).length === 0);
+  // La fenêtre se ferme pendant l'évaluation : la réponse ne revient jamais, c'est attendu.
   await pop.eval('window.close()').catch(() => {});
   pop.fermer();
 
