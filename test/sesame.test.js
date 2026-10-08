@@ -359,6 +359,11 @@ test('plafonds par coffre : nombre d’éléments et octets, à l’ajout comme 
   } finally { await autre.arreter(); }
 });
 
+test('configuration : une valeur invalide arrête le démarrage, toutes les erreurs dites d’un coup', async () => {
+  const env = { DATA_DIR: path.join(tmp, 'mauvaise'), PORT: '0', HOTE: '127.0.0.1', SESAME_LOGOS: 'peut-être', SESAME_MAX_MIO: '0' };
+  await assert.rejects(demarrer(env, { log: silence }), e => /SESAME_LOGOS/.test(e.message) && /SESAME_MAX_MIO/.test(e.message));
+});
+
 test('un compte effacé part avec son coffre, ses éléments et leurs partages', async () => {
   const c = new Client(port);
   const { client: zoe } = await membreInvite(admin, () => c, { identifiant: 'zoe', role: 'membre' });
