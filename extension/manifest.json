@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "CODVAULT",
+  "short_name": "CODVAULT",
+  "version": "2.0.0",
+  "description": "Remplit tes identifiants depuis ton coffre CODVAULT, quand tu le demandes. Le coffre s'ouvre ici, avec ton mot de passe maître.",
+  "icons": { "16": "icones/16.png", "32": "icones/32.png", "48": "icones/48.png", "128": "icones/128.png" },
+  "action": {
+    "default_title": "CODVAULT",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icones/16.png", "32": "icones/32.png" }
+  },
+  "background": { "service_worker": "fond.js", "scripts": ["fond.js"], "type": "module" },
+  "permissions": ["activeTab", "scripting", "storage", "alarms", "idle", "clipboardWrite", "offscreen"],
+  "optional_host_permissions": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
+  "commands": {
+    "remplir": { "suggested_key": { "default": "Ctrl+Shift+L", "mac": "Command+Shift+L" }, "description": "Remplir l'identifiant du site ouvert" }
+  },
+  "content_security_policy": {
+    "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https: http://localhost:* http://127.0.0.1:*; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+  },
+  "browser_specific_settings": {
+    "gecko": { "id": "codvault@codexx64.github.io", "strict_min_version": "128.0" }
+  },
+  "minimum_chrome_version": "121"
+}
