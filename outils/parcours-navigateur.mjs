@@ -95,7 +95,7 @@ await page.getByRole('tab', { name: /^Tout/ }).click();
 await page.locator('.el-corps').first().click();
 await dialogue().waitFor();
 await controle('detail');
-await dialogue().getByRole('button', { name: 'Partager' }).click().catch(() => {});
+await dialogue().getByRole('button', { name: 'Partager' }).click().catch(() => { /* absent pour un élément partagé par un autre */ });
 await page.waitForTimeout(300);
 await controle('partage');
 await dialogue().getByRole('button', { name: /^(Fermer)$/ }).last().click();
