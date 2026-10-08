@@ -6,11 +6,14 @@
 //   - un partage en « écriture » permet de modifier l'élément, jamais de le
 //     supprimer ni de le repartager ;
 //   - changer de mot de passe maître, lire la clé de récupération chiffrée,
-//     refaire la clé de récupération : sous renfort du socle.
+//     refaire la clé de récupération, relier un appareil : sous renfort du socle ;
+//   - un appareil relié (l'extension) lit son coffre et ses éléments, chiffrés,
+//     avec son propre jeton : deux routes en lecture, rien d'autre.
 //
 // Aucun jeton de service : ni le Hub ni un autre service n'ont de route ici.
 import { ErreurHttp, Routeur, lireCorps, valider, repondreJson } from '../socle/src/index.js';
 import { effacerCompte } from './base.js';
+import { Appareils, MAX_PAR_COMPTE, codeDeLiaison } from './appareils.js';
 import { DOMAINE } from './logos.js';
 import { VERSION } from './config.js';
 
@@ -45,12 +48,22 @@ const S = {
   element: { id: T(22, { requis: true, motif: ID }), chiffre: T(140100, { requis: true, motif: CHIFFRE }), cle: T(90, { requis: true, motif: CLE_ENVELOPPEE }) },
   maj: { version: { ...E(1, Number.MAX_SAFE_INTEGER), requis: true }, chiffre: T(140100, { requis: true, motif: CHIFFRE }) },
   lot: { elements: { type: 'liste', max: 500, requis: true, de: { type: 'objet', champs: { id: T(22, { requis: true, motif: ID }), chiffre: T(140100, { requis: true, motif: CHIFFRE }), cle: T(90, { requis: true, motif: CLE_ENVELOPPEE }) } } } },
+  appareil: { nom: T(60, { requis: true, motif: /^[\p{L}\p{N} ._'()-]{1,60}$/u }) },
   partage: { destinataire: T(64, { requis: true, motif: /^[A-Za-z0-9_-]{1,64}$/ }), cle: T(400, { requis: true, motif: CLE_PARTAGEE }), droits: T(10, { requis: true, parmi: ['lecture', 'ecriture'] }) },
 };
 
 export function creerApi({ socle, db, logos, cfg }) {
   const r = new Routeur();
-  const { portail, journal, comptes } = socle;
+  const { portail, journal, comptes, limiteur } = socle;
+  const appareils = new Appareils(db);
+  // Toutes les sessions d'un compte tombent (« ce n'était pas moi », réinitialisation,
+  // rôle changé, compte désactivé, code de secours) : ses appareils avec elles.
+  const fermerToutes = comptes.fermerToutes.bind(comptes);
+  comptes.fermerToutes = compte => {
+    fermerToutes(compte);
+    const n = appareils.retirerTout(compte);
+    if (n) journal.ecrire({ acteur: compte, action: 'appareils.retires', objet: compte, details: { appareils: n, cause: 'sessions_fermees' } });
+  };
   const session = (ctx, opts = {}) => portail.exiger(ctx, { role: 'lecture', ...opts });
   const corps = async (ctx, schema, limite = 64 * 1024) => valider(await lireCorps(ctx.req, { limite }), schema);
   const tracer = (ctx, s, action, objet, details) => journal.ecrire({ acteur: s.compte, action, objet, ip: ctx.ip, details });
@@ -140,11 +153,13 @@ export function creerApi({ socle, db, logos, cfg }) {
     const p = partage(e.id, compte);
     return { id: e.id, via: 'partage', chiffre: e.chiffre, cle: p.cle, version: e.version, modifie: e.modifie, cree: e.cree, droits: p.droits, proprietaire: nomDe(e.proprietaire) };
   };
+  const elementsDe = compte => [
+    ...db.prepare('SELECT * FROM elements WHERE proprietaire = ? ORDER BY modifie DESC').all(compte),
+    ...db.prepare('SELECT e.* FROM elements e JOIN partages p ON p.element = e.id WHERE p.destinataire = ? ORDER BY e.modifie DESC').all(compte),
+  ];
   r.get('/api/elements', ctx => {
     const s = session(ctx);
-    const propres = db.prepare('SELECT * FROM elements WHERE proprietaire = ? ORDER BY modifie DESC').all(s.compte);
-    const partages = db.prepare('SELECT e.* FROM elements e JOIN partages p ON p.element = e.id WHERE p.destinataire = ? ORDER BY e.modifie DESC').all(s.compte);
-    return { elements: [...propres, ...partages].map(e => vue(e, s.compte)) };
+    return { elements: elementsDe(s.compte).map(e => vue(e, s.compte)) };
   });
 
   const ajouter = (s, b, t) => db.prepare('INSERT INTO elements(id, proprietaire, chiffre, cle, cree, modifie, modifie_par) VALUES(?, ?, ?, ?, ?, ?, ?)').run(b.id, s.compte, b.chiffre, b.cle, t, t, s.compte);
@@ -245,6 +260,58 @@ export function creerApi({ socle, db, logos, cfg }) {
     ctx.res.end(l.octets);
   });
 
+  // ---- appareils reliés (extension de navigateur) ----
+  r.get('/api/appareils', ctx => {
+    const s = session(ctx);
+    return { appareils: appareils.lister(s.compte), max: MAX_PAR_COMPTE };
+  });
+  r.post('/api/appareils', async ctx => {
+    const s = session(ctx, { renfort: true });
+    exigerCoffre(s.compte);
+    const b = await corps(ctx, S.appareil);
+    const origine = socle.cfg.urlPublique ? new URL(socle.cfg.urlPublique).origin : ctx.origine;
+    if (!origine || !ctx.sur) throw new ErreurHttp(409, 'Relier un appareil demande CODVAULT en HTTPS, à son adresse publique.');
+    const a = appareils.relier(s.compte, b.nom);
+    if (!a) throw new ErreurHttp(409, `Plafond atteint : ${MAX_PAR_COMPTE} appareils. Retires-en un d’abord.`);
+    tracer(ctx, s, 'appareil.relie', a.id, { nom: b.nom });
+    return { id: a.id, code: codeDeLiaison(origine, a.jeton) };
+  });
+  r.del('/api/appareils/:id', ctx => {
+    const s = session(ctx);
+    if (!appareils.retirer(s.compte, ctx.params.id)) throw new ErreurHttp(404, 'Appareil introuvable.');
+    tracer(ctx, s, 'appareil.retire', ctx.params.id, {});
+    return { ok: true };
+  });
+
+  // Les deux routes de l'appareil : en HTTPS seulement, jeton dans l'en-tête,
+  // aucun cookie lu. Un jeton refusé compte parmi les échecs de l'adresse.
+  const appareil = ctx => {
+    if (!ctx.sur) throw new ErreurHttp(403, 'HTTPS exigé.');
+    const cles = [`ip:${ctx.ip}`];
+    limiteur.controler(cles);
+    const a = appareils.authentifier(ctx.req.headers.authorization);
+    const actif = a && db.prepare('SELECT actif FROM socle_comptes WHERE id = ?').get(a.compte)?.actif === 1;
+    if (!actif) {
+      if (a) appareils.retirerTout(a.compte);
+      limiteur.echec(cles);
+      journal.rare(`appareil:${ctx.ip}`, { action: 'appareil.refuse', objet: ctx.url.pathname, ip: ctx.ip, resultat: 'refus', details: {} });
+      throw new ErreurHttp(401, 'Appareil inconnu ou retiré : relie-le à nouveau depuis CODVAULT.');
+    }
+    return a;
+  };
+  r.get('/api/appareil/coffre', ctx => {
+    const a = appareil(ctx);
+    const c = exigerCoffre(a.compte);
+    return { compte: a.compte, kdf: JSON.parse(c.kdf), cle: c.cle, clePublique: c.cle_publique, clePrivee: c.cle_privee, preferences: c.preferences || null, version: c.version };
+  });
+  r.get('/api/appareil/elements', ctx => {
+    const a = appareil(ctx);
+    return { elements: elementsDe(a.compte).map(e => {
+      const v = vue(e, a.compte);
+      return { id: v.id, via: v.via, chiffre: v.chiffre, cle: v.cle, version: v.version };
+    }) };
+  });
+
   // Un compte effacé (par lui-même ou par un administrateur) part avec tout ce qui est à lui.
   comptes.apresSuppression.push(compte => effacerCompte(db, compte));
   // L'export de ses données (socle) : son coffre tel qu'il est stocké, chiffré.
@@ -256,6 +323,7 @@ export function creerApi({ socle, db, logos, cfg }) {
 
   const PARAM = { id: ID, dest: /^[A-Za-z0-9_-]{1,64}$/, domaine: /^[a-z0-9.-]{4,253}$/i };
   return {
+    appareils,
     async traiter(ctx) {
       const p = ctx.url.pathname;
       if (!p.startsWith('/api/')) return false;

@@ -13,6 +13,7 @@ import { demarrer } from '../src/main.js';
 import { adresseInterdite, iconesDeLaPage, Logos } from '../src/logos.js';
 import { ecrirePng, lirePng } from '../src/image.js';
 import { ouvrirBase } from '../src/base.js';
+import { Appareils, DUREE_MS, INACTIVITE_MS, MAX_PAR_COMPTE } from '../src/appareils.js';
 import * as C from '../web/crypto.js';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'codvault-'));
@@ -321,6 +322,8 @@ test('balayage : chaque route fermée sans session, chaque écriture fermée au 
     ['get', '/api/elements'], ['post', '/api/elements', {}], ['post', '/api/elements/lot', {}], ['put', `/api/elements/${el.id}`, {}],
     ['del', `/api/elements/${el.id}`], ['get', '/api/destinataires'], ['put', `/api/elements/${el.id}/partages`, {}],
     ['del', `/api/elements/${el.id}/partages/${ids.membre}`], ['get', '/api/logos/exemple.org'],
+    ['get', '/api/appareils'], ['post', '/api/appareils', {}], ['del', `/api/appareils/${el.id}`],
+    ['get', '/api/appareil/coffre'], ['get', '/api/appareil/elements'],
   ];
   for (const [m, chemin, corps] of routes) assert.equal((await anonyme[m](chemin, corps)).status, 401, `${m} ${chemin} sans session`);
   // Le lecteur lit son coffre, n'écrit aucun élément et ne partage rien.
@@ -372,6 +375,98 @@ test('configuration : une valeur invalide arrête le démarrage, toutes les erre
   await assert.rejects(demarrer(env, { log: silence }), e => /CODVAULT_LOGOS/.test(e.message) && /CODVAULT_MAX_MIO/.test(e.message));
 });
 
+const sha256 = t => crypto.createHash('sha256').update(t).digest('hex');
+const parAppareil = jeton => ({ entetes: { authorization: `Bearer ${jeton}` }, origine: null });
+function lireCode(code) {
+  const m = /^CV1\.([A-Za-z0-9_-]+)\.(cvd_[A-Za-z0-9_-]{43})$/.exec(code);
+  assert.ok(m, `code de liaison : ${code}`);
+  return { origine: Buffer.from(m[1], 'base64url').toString(), jeton: m[2] };
+}
+
+test('appareils : jeton montré une fois et gardé haché, lecture du chiffré seulement, retrait, sessions fermées', async () => {
+  const { client: tom } = await membreInvite(admin, () => new Client(port), { identifiant: 'tom', role: 'membre' });
+  const compte = (await tom.get('/api/coffre')).json.compte;
+  const n = await C.creerCoffre(MAITRE + 'tom', compte);
+  assert.equal((await tom.post('/api/appareils', { nom: 'Firefox' })).status, 409, 'pas d’appareil sans coffre');
+  ok(await tom.post('/api/coffre', n.publique));
+  ok(await tom.post('/api/elements', await C.chiffrerNouveau(n.session, { type: 'acces', nom: 'Banque', url: 'https://banque.exemple.org', identifiant: 'tom', motDePasse: 'P4ss-de-banque!' })));
+  for (const nom of ['', 'x'.repeat(61), '<script>', 'a\nb']) assert.equal((await tom.post('/api/appareils', { nom })).status, 400, `nom ${JSON.stringify(nom)}`);
+
+  const r = ok(await tom.post('/api/appareils', { nom: 'Firefox (PC)' }));
+  const { origine, jeton } = lireCode(r.code);
+  assert.equal(origine, `http://localhost:${port}`);
+  const ligne = codvault.db.prepare('SELECT * FROM appareils WHERE id = ?').get(r.id);
+  assert.equal(ligne.empreinte, sha256(jeton));
+  assert.ok(!JSON.stringify(ligne).includes(jeton.slice(4)), 'le jeton n’est gardé qu’haché');
+  const liste = ok(await tom.get('/api/appareils')).appareils;
+  assert.deepEqual(liste.map(a => a.nom), ['Firefox (PC)']);
+  assert.ok(!JSON.stringify(liste).includes(ligne.empreinte), 'ni le jeton ni son empreinte ne ressortent');
+
+  // L'appareil lit le chiffré, et l'ouvre avec le mot de passe maître, chez lui.
+  const appareil = new Client(port);
+  const coffre = ok(await appareil.get('/api/appareil/coffre', parAppareil(jeton)));
+  assert.equal(coffre.compte, compte);
+  assert.equal(coffre.recuperation, undefined, 'l’enveloppe de récupération ne sort pas vers un appareil');
+  const s = await C.deverrouiller(MAITRE + 'tom', coffre, coffre.compte);
+  const lignes = ok(await appareil.get('/api/appareil/elements', parAppareil(jeton))).elements;
+  assert.deepEqual(Object.keys(lignes[0]).sort(), ['chiffre', 'cle', 'id', 'version', 'via']);
+  assert.equal((await C.dechiffrerElement(s, lignes[0])).motDePasse, 'P4ss-de-banque!');
+
+  // Le jeton n'ouvre rien d'autre : ni les routes de session, ni l'écriture.
+  for (const [m, chemin, corps] of [['get', '/api/coffre'], ['get', '/api/elements'], ['post', '/api/elements', {}], ['put', '/api/coffre/preferences', {}],
+    ['get', '/api/coffre/recuperation'], ['get', '/api/appareils'], ['post', '/api/appareils', { nom: 'autre' }], ['del', `/api/appareils/${r.id}`]])
+    assert.equal((await appareil[m](chemin, corps, parAppareil(jeton))).status, 401, `${m} ${chemin} avec le jeton d’appareil`);
+  for (const m of ['post', 'put', 'del']) assert.ok([404, 405].includes((await appareil[m]('/api/appareil/elements', {}, parAppareil(jeton))).status), `${m} sur la route de l’appareil`);
+  // Jetons faux, malformés, absents ; HTTP hors localhost.
+  const oublier = () => codvault.db.prepare("DELETE FROM socle_essais WHERE cle LIKE 'ip:%'").run();
+  for (const faux of ['cvd_' + 'A'.repeat(43), jeton.slice(0, -1), jeton + 'A', 'Basic ' + jeton, '']) {
+    const opts = { entetes: { authorization: faux.startsWith('Basic') || !faux ? faux : `Bearer ${faux}` }, origine: null };
+    assert.equal((await new Client(port).get('/api/appareil/coffre', opts)).status, 401, `jeton ${faux.slice(0, 12)}…`);
+    oublier();
+  }
+  // Des jetons essayés en série : l'adresse est bloquée, même avec le bon ensuite.
+  let statut;
+  for (let i = 0; i < 50 && statut !== 429; i++) statut = (await new Client(port).get('/api/appareil/coffre', parAppareil('cvd_' + crypto.randomBytes(32).toString('base64url')))).status;
+  assert.equal(statut, 429);
+  assert.equal((await appareil.get('/api/appareil/coffre', parAppareil(jeton))).status, 429);
+  oublier();
+  assert.equal((await appareil.get('/api/appareil/coffre', { entetes: { authorization: `Bearer ${jeton}`, host: 'codvault.exemple.org' }, origine: null })).status, 403, 'jamais en HTTP');
+  codvault.db.prepare("DELETE FROM socle_essais WHERE cle LIKE 'ip:%'").run();
+
+  // Un autre compte ne retire pas l'appareil ; son propriétaire, si.
+  assert.equal((await membre.del(`/api/appareils/${r.id}`)).status, 404);
+  ok(await tom.del(`/api/appareils/${r.id}`));
+  assert.equal((await appareil.get('/api/appareil/coffre', parAppareil(jeton))).status, 401, 'retiré : refusé');
+
+  // Plafond par compte.
+  const codes = [];
+  for (let i = 0; i < MAX_PAR_COMPTE; i++) codes.push(ok(await tom.post('/api/appareils', { nom: `appareil ${i}` })).code);
+  assert.equal((await tom.post('/api/appareils', { nom: 'un de trop' })).status, 409);
+  // Toutes les sessions du compte tombent (ici : « ce n'était pas moi ») : ses appareils avec.
+  ok(await tom.post('/api/compte/pas-moi'));
+  for (const code of codes) { assert.equal((await appareil.get('/api/appareil/coffre', parAppareil(lireCode(code).jeton))).status, 401); oublier(); }
+  assert.equal(codvault.db.prepare('SELECT count(*) n FROM appareils WHERE compte = ?').get(compte).n, 0);
+});
+
+test('appareils : expirés après 30 jours sans servir et 180 jours au plus', () => {
+  const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'codvault-app-'));
+  const db = ouvrirBase(dossier);
+  let t = 1_000_000;
+  const a = new Appareils(db, { maintenant: () => t });
+  const x = a.relier('c1', 'x');
+  const entete = `Bearer ${x.jeton}`;
+  t += INACTIVITE_MS - 1; assert.ok(a.authentifier(entete), 'servi avant 30 jours');
+  t += INACTIVITE_MS - 1; assert.ok(a.authentifier(entete), 'chaque usage repousse l’inactivité');
+  t += INACTIVITE_MS + 1; assert.equal(a.authentifier(entete), null, 'inactif : tombé');
+  const y = a.relier('c1', 'y');
+  for (let i = 0; i < 8; i++) { t += 25 * 864e5; a.authentifier(`Bearer ${y.jeton}`); }
+  assert.ok(t - 1_000_000 > DUREE_MS);
+  assert.equal(a.authentifier(`Bearer ${y.jeton}`), null, 'au-delà de 180 jours : tombé même servi');
+  assert.equal(db.prepare('SELECT count(*) n FROM appareils').get().n, 0, 'purgés de la base');
+  db.close();
+  fs.rmSync(dossier, { recursive: true, force: true });
+});
+
 test('un compte effacé part avec son coffre, ses éléments et leurs partages', async () => {
   const c = new Client(port);
   const { client: zoe } = await membreInvite(admin, () => c, { identifiant: 'zoe', role: 'membre' });
@@ -382,4 +477,14 @@ test('un compte effacé part avec son coffre, ses éléments et leurs partages',
   codvault.socle.comptes.apresSuppression.forEach(f => f(compte));
   assert.equal(codvault.db.prepare('SELECT count(*) n FROM elements WHERE proprietaire = ?').get(compte).n, 0);
   assert.equal(codvault.db.prepare('SELECT count(*) n FROM coffres WHERE compte = ?').get(compte).n, 0);
+});
+
+test('incident : « fermer toutes les sessions » retire aussi tous les appareils', async () => {
+  const { s } = await coffreDe('membre', membre);
+  assert.ok(s);
+  const { jeton } = lireCode(ok(await membre.post('/api/appareils', { nom: 'Chrome' })).code);
+  ok(await new Client(port).get('/api/appareil/coffre', parAppareil(jeton)));
+  ok(await admin.post('/api/compte/admin/sessions/fermer-tout'));
+  assert.equal((await new Client(port).get('/api/appareil/coffre', parAppareil(jeton))).status, 401);
+  assert.equal(codvault.db.prepare('SELECT count(*) n FROM appareils').get().n, 0);
 });

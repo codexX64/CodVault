@@ -34,7 +34,14 @@ export async function demarrer(env = process.env, { log = CONSOLE, logos: option
       const nonce = nonceCsp();
       // Aucune origine extérieure : ni police, ni image, ni script venus d'ailleurs.
       entetesSecurite(res, { secure: ctx.securise, hote: req.headers.host, csp: politiqueContenu({ nonce, secure: ctx.securise }) });
-      if (await socle.portail.traiter(req, res, url, ctx)) return;
+      if (await socle.portail.traiter(req, res, url, ctx)) {
+        // Incident : toutes les sessions sont tombées, les appareils reliés aussi.
+        if (req.method === 'POST' && url.pathname === '/api/compte/admin/sessions/fermer-tout' && res.statusCode === 200) {
+          const n = api.appareils.retirerTousComptes();
+          socle.journal.ecrire({ acteur: ctx.session?.compte ?? null, action: 'appareils.retires', objet: 'tous', ip: ctx.ip, details: { appareils: n, cause: 'incident' } });
+        }
+        return;
+      }
       if (await api.traiter(ctx)) return;
       if (!['GET', 'HEAD'].includes(req.method)) return repondreJson(res, 405, { error: 'Méthode non admise.' });
       if (url.pathname.startsWith('/socle/') && servirFichier(req, res, path.join(RACINE, 'socle', 'web'), url.pathname.slice(6), { nonce, cache: 'public, max-age=3600' })) return;
