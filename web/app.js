@@ -93,10 +93,11 @@ async function creation() {
       if (m1.input.value !== m2.input.value) throw new Error('Les deux saisies diffèrent.');
       if (C.force(m1.input.value).niveau === 'faible' || [...m1.input.value].length < 12) throw new Error('Trop faible : douze caractères au moins — une phrase de quatre ou cinq mots fait très bien l’affaire.');
       const neuf = await C.creerCoffre(m1.input.value, moi.id);
-      m1.input.value = m2.input.value = '';
-      await montrerRecuperation(neuf.recuperation, 'Ta clé de récupération', 'Si tu oublies ton mot de passe maître, c’est le seul moyen de rouvrir ton coffre. Garde-la hors de ce navigateur : imprimée, ou dans un autre gestionnaire.');
+      // Enregistré avant d'être montré : une clé de récupération mise de côté vaut pour un coffre qui existe.
       coffre = await api.post('/api/coffre', neuf.publique);
       cles = neuf.session;
+      m1.input.value = m2.input.value = '';
+      await montrerRecuperation(neuf.recuperation, 'Ta clé de récupération', 'Si tu oublies ton mot de passe maître, c’est le seul moyen de rouvrir ton coffre. Garde-la hors de ce navigateur : imprimée, ou dans un autre gestionnaire.');
       await ouvrirLeCoffre();
     });
   } }, m1.noeud, m2.noeud, jaugeMaitre(m1.input), err, h('div', { class: 'wfoot' }, go));
