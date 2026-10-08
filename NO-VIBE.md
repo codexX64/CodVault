@@ -9,8 +9,8 @@ serveur ni chiffrement réel), pas son code. Le passage Part III s'est fait en
 deux volets. Le premier (bannières, un nom local, trois littéraux écrits en
 échappements) a précédé le premier commit ; il ne change aucune instruction,
 et la suite complète est passée juste après. Le second est dans l'historique,
-après le commit fb3036c, qui sert de référence : 18 essais de SÉSAME et 63 du
-socle, tous au vert (`git worktree add <dossier> fb3036c`, puis `npm test`),
+après le commit 2c059d5, qui sert de référence : 18 essais de SÉSAME et 63 du
+socle, tous au vert (`git worktree add <dossier> 2c059d5`, puis `npm test`),
 plus le parcours Chromium (112 écrans × largeurs, 0 défaut, 0 erreur de
 console). Le passage n'a touché ni une route, ni un schéma de corps, ni le
 format d'un bloc chiffré, ni ce que l'interface et les essais importent de
