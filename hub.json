@@ -4,7 +4,7 @@
   "id": "codvault",
   "name": "CODVAULT",
   "version": "2.0.0",
-  "description": "Mots de passe à connaissance nulle : coffre chiffré dans le navigateur, codes A2F, notes, import, partage chiffré entre comptes.",
+  "description": "Mots de passe à connaissance nulle : coffre chiffré dans le navigateur, codes A2F, notes, import, partage chiffré entre comptes, extension de remplissage.",
   "icon": "key",
   "repository": "https://github.com/CodexX64/codvault",
   "license": "MIT",
@@ -138,7 +138,7 @@
       "type": "string",
       "default": "",
       "advanced": true,
-      "help": "Ex. https://codvault.exemple. Les liens des courriels en partent."
+      "help": "Ex. https://codvault.exemple. Les liens des courriels et les codes de liaison de l’extension en partent."
     },
     {
       "key": "SOCLE_SMTP_HOTE",

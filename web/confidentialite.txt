@@ -20,11 +20,19 @@ Sessions
   Finalité : lister et fermer ses appareils. Durée : douze heures au plus,
   une heure sans activité.
 
+Appareils reliés (extension de navigateur)
+  - nom donné à l'appareil, dates de liaison, de dernier usage et de fin,
+    empreinte SHA-256 de son jeton (jamais le jeton).
+  Finalité : laisser l'extension lire le coffre chiffré, et pouvoir la
+  retirer. Durée : trente jours sans servir, cent quatre-vingts jours au plus,
+  ou jusqu'à son retrait.
+
 Événements de sécurité
   - connexions, échecs, changements de facteurs, refus, avec l'adresse IP ;
-  - pour le coffre : création, changement du mot de passe maître, clé de
-    récupération lue ou refaite, éléments ajoutés, modifiés, supprimés,
-    partagés — l'identifiant de l'élément, jamais son contenu.
+  - pour le coffre : création, changement du mot de passe maître, clé du
+    coffre renouvelée, clé de récupération lue ou refaite, appareils reliés,
+    retirés ou refusés, éléments ajoutés, modifiés, supprimés, partagés —
+    l'identifiant de l'élément ou de l'appareil, jamais un contenu.
   Finalité : détecter un abus et répondre à un incident. Durée : cinquante
   derniers événements par compte ; journal du service : 365 jours.
 
@@ -51,6 +59,9 @@ Coffre
     la réponse, qu'un logo y était déjà.
   - L'exploitant peut couper les logos (CODVAULT_LOGOS=non) : plus aucune
     demande ne part, chaque site garde ses initiales.
+  - L'extension : quand elle lit le coffre, le serveur voit quel appareil le
+    demande et quand. Elle ne lui dit jamais sur quel site elle remplit : le
+    choix et le remplissage se font dans le navigateur.
 
 3. CE QUI PART AILLEURS
 
@@ -61,10 +72,13 @@ Coffre
     de sécurité à l'adresse vérifiée.
   Aucune mesure d'audience, aucun traceur, aucune publicité.
 
-4. COOKIES
+4. COOKIES ET STOCKAGE
 
   Un cookie de session, indispensable à la connexion, et un cookie de
   cérémonie de cinq minutes pendant une connexion par clé d'accès. Aucun autre.
+  L'extension garde dans son propre stockage l'adresse du serveur et son jeton
+  d'appareil ; la clé du coffre ouvert, seulement dans la mémoire du
+  navigateur, le temps choisi.
 
 5. DROITS
 
@@ -73,8 +87,9 @@ Coffre
     export lisible avec le mot de passe maître.
   - Rectification : facteurs et adresse d'alerte depuis la page Sécurité ;
     nom affiché et rôle, auprès de l'exploitant.
-  - Effacement : chaque élément se supprime depuis le coffre ; le compte, son
-    coffre, ses éléments et leurs partages, depuis la page Sécurité,
+  - Effacement : chaque élément se supprime depuis le coffre, chaque appareil
+    depuis la page Extension ; le compte, son coffre, ses éléments, leurs
+    partages et ses appareils, depuis la page Sécurité,
     « Supprimer mon compte » (une confirmation récente est demandée), ou par
     un administrateur.
   - Toute demande : auprès de l'exploitant de cette instance.

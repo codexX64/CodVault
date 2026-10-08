@@ -2,8 +2,9 @@
 
 Gestionnaire de mots de passe sous le Hub. Chaque compte a son coffre :
 identifiants avec générateur, codes A2F (TOTP), notes sécurisées. On importe
-depuis Bitwarden, Chrome, Edge, Firefox ou Safari, et on partage un élément
-avec un autre compte de la même instance.
+depuis Bitwarden, Chrome, Edge, Firefox ou Safari, on partage un élément avec
+un autre compte de la même instance, et une extension de navigateur remplit
+les identifiants sur le site ouvert.
 
 Le chiffrement se fait dans le navigateur. Le serveur ne reçoit que des blocs
 chiffrés et ne peut lire ni les mots de passe, ni les notes, ni les secrets
@@ -33,6 +34,37 @@ que publié, empreintes vérifiées par les essais. Le serveur refuse une
 enveloppe sous le plancher (19 Mio, 2 passes, 1 voie), et un coffre créé avec
 des paramètres plus faibles que la cible est réenveloppé au déverrouillage
 suivant.
+
+Après une fuite possible, « Renouveler la clé du coffre » (Coffre et clés)
+tire une clé de coffre neuve, rechiffre chaque élément sous une clé d'élément
+neuve, réenveloppe les partages et refait la clé de récupération, d'un seul
+bloc : une ancienne clé n'ouvre plus rien de ce que le serveur garde. Les
+autres sessions et les appareils reliés du compte sont déconnectés.
+
+## L'extension
+
+Le dossier [extension/](extension/) est une extension Manifest V3 pour
+Chrome, Edge, Brave et Firefox (128 ou plus). Dans CODVAULT, page Extension,
+« Relier une extension » donne un code montré une fois ; collé dans
+l'extension, il lui donne un jeton d'appareil qui ne lit que le coffre
+chiffré. Le coffre s'ouvre dans l'extension avec le mot de passe maître, par
+le même [crypto.js](web/crypto.js) que l'interface (copié par
+`node outils/extension.mjs`, comparé octet pour octet par les essais).
+
+Elle ne remplit que sur un clic dans sa fenêtre ou sur Ctrl+Maj+L : aucun
+script injecté dans les pages d'avance, aucun menu posé dans les sites. Au
+moment de remplir, elle vérifie que la page est en HTTPS, que c'est le cadre
+principal, que le site est toujours celui de l'élément, et ne touche qu'aux
+champs visibles ; le mot de passe ne va que dans un champ mot de passe. La
+clé du coffre reste en mémoire de session du navigateur le temps choisi
+(5 minutes par défaut, ou « à chaque ouverture »), jamais sur disque ; un mot
+de passe copié est effacé du presse-papiers après 30 secondes.
+
+Installation : Chrome, Edge ou Brave, `chrome://extensions` → mode
+développeur → « Charger l'extension non empaquetée » → le dossier
+`extension/`. Firefox demande une extension signée :
+`node outils/extension.mjs --zip`, puis la signer en non listé sur
+addons.mozilla.org (`web-ext sign --channel=unlisted --source-dir extension`).
 
 ## Les logos
 
@@ -72,9 +104,11 @@ cd socle && node --disable-warning=ExperimentalWarning --test test/*.test.js
 ```
 
 Les essais tournent aux paramètres de production d'Argon2id, sans réglage
-abaissé : une quarantaine de secondes. `node outils/parcours-navigateur.mjs`
+abaissé : une minute environ. `node outils/parcours-navigateur.mjs`
 parcourt l'interface dans Chromium (Playwright requis) contre
 `node outils/vitrine.mjs`, et contrôle la mise en page à sept largeurs, de 360 à 1920 px.
+`xvfb-run node outils/parcours-extension.mjs` charge l'extension dans
+Chromium, contre un CODVAULT et un faux site HTTPS lancés sur place.
 
 ## Sécurité
 
