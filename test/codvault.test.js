@@ -5,6 +5,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { Client } from '../socle/essai/client.js';
@@ -373,6 +374,16 @@ test('plafonds par coffre : nombre d’éléments et octets, à l’ajout comme 
 test('configuration : une valeur invalide arrête le démarrage, toutes les erreurs dites d’un coup', async () => {
   const env = { DATA_DIR: path.join(tmp, 'mauvaise'), PORT: '0', HOTE: '127.0.0.1', CODVAULT_LOGOS: 'peut-être', CODVAULT_MAX_MIO: '0' };
   await assert.rejects(demarrer(env, { log: silence }), e => /CODVAULT_LOGOS/.test(e.message) && /CODVAULT_MAX_MIO/.test(e.message));
+});
+
+test('manifeste du Hub : relais de confiance du réseau du Hub par défaut, HTTPS reconnu derrière Relay', () => {
+  const manifeste = JSON.parse(fs.readFileSync(new URL('../hub.json', import.meta.url), 'utf8'));
+  // Derrière Relay (réseau Docker du Hub), le HTTPS n'est reconnu que si le relais est de confiance.
+  const proxys = manifeste.config.find(c => c.key === 'SOCLE_PROXYS').default;
+  assert.ok(proxys, 'relais de confiance vide : CODVAULT se croirait en HTTP derrière Relay');
+  const relais = new net.BlockList();
+  for (const p of proxys.split(',')) { const [a, l] = p.trim().split('/'); relais.addSubnet(a, Number(l)); }
+  assert.ok(relais.check('172.18.0.5') && !relais.check('10.0.0.11'), 'le réseau Docker du Hub, pas le réseau local');
 });
 
 const sha256 = t => crypto.createHash('sha256').update(t).digest('hex');
