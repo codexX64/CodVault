@@ -162,3 +162,7 @@ fichiers tiers ou copies servis tels quels) :
 - [x] Blind-comparison test passed — mêmes aides, même forme de routes, même vocabulaire que VIGIE et Oracle sur le même socle
 - [x] Commit history: one concern per commit, repository style, no attribution trailers
 - [x] REQ-CODE-001 to REQ-CODE-006 all PASS
+
+## Suivi du 2026-10-25 (2.0.1)
+
+Socle 6f2c864 embarqué. Une règle de plus dans `web/codvault.css` (compteur vide du rail masqué), le défaut du relais de confiance dans `hub.json` et son essai dans `test/codvault.test.js` ; aucune aide nouvelle, aucun nom changé, routes et formats inchangés. 31 essais du service et 77 du socle verts ; parcours du navigateur : 154 écrans × largeurs dans chacune des quatre gammes, 0 défaut, 0 erreur de console.
