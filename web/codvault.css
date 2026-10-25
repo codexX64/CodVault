@@ -40,6 +40,8 @@
 .etoile.on svg{fill:currentColor}
 .vide{padding:44px 12px;text-align:center;color:var(--muted);font-size:13.5px}
 .tronque{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Un compteur à zéro est vide : il ne prend ni place ni écart au libellé du rail. */
+.nav .cnt:empty{display:none}
 
 /* Logos : initiales colorées d'après le domaine, le logo du site par-dessus s'il arrive */
 .logo{--teinte:220;position:relative;flex:none;display:grid;place-items:center;border-radius:10px;overflow:hidden;
