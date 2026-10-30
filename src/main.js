@@ -4,12 +4,12 @@
 // des logos, aucune IA, aucun jeton de service.
 import http from 'node:http';
 import path from 'node:path';
-import { lireConfigCodvault, VERSION } from './config.js';
+import { lireConfigCodvault, VERSION, SPEC_CODVAULT, REGLAGES_CODVAULT } from './config.js';
 import { ouvrirBase } from './base.js';
 import { Logos } from './logos.js';
 import { creerApi } from './api.js';
 import {
-  Debit, ErreurHttp, demarrerSocle, entetesSecurite, envelopper, nonceCsp, politiqueContenu,
+  Debit, ErreurHttp, appliquerReglages, demarrerSocle, lireNouveautes, superviser, entetesSecurite, envelopper, nonceCsp, politiqueContenu,
   repondreErreur, repondreJson, servirFichier,
 } from '../socle/src/index.js';
 
@@ -17,10 +17,16 @@ const RACINE = path.resolve(import.meta.dirname, '..');
 const CONSOLE = { info: (...a) => console.log(...a), warn: (...a) => console.warn(...a), error: (...a) => console.error(...a) };
 const CONTACT_SECURITE = 'https://github.com/CodexX64/codvault/security/advisories/new';
 
-export async function demarrer(env = process.env, { log = CONSOLE, logos: optionsLogos = {} } = {}) {
+export async function demarrer(envBrut = process.env, { log = CONSOLE, logos: optionsLogos = {} } = {}) {
+  // Les réglages posés par l'assistant complètent l'environnement (qui garde la main).
+  const env = appliquerReglages({ dossier: envBrut.DATA_DIR || SPEC_CODVAULT.donnees.defaut, env: envBrut });
   const cfg = lireConfigCodvault(env);
   const db = ouvrirBase(cfg.donnees);
-  const socle = await demarrerSocle({ service: { id: 'codvault', nom: 'CODVAULT', contactSecurite: CONTACT_SECURITE }, db, dossier: cfg.donnees, env, log });
+  const socle = await demarrerSocle({
+    service: { id: 'codvault', nom: 'CODVAULT', contactSecurite: CONTACT_SECURITE }, db, dossier: cfg.donnees, env, log,
+    assistant: { reglages: REGLAGES_CODVAULT, spec: SPEC_CODVAULT, version: VERSION, controler: lireConfigCodvault },
+    version: VERSION, nouveautes: lireNouveautes(new URL('../nouveautes.json', import.meta.url)),
+  });
   const logos = new Logos({ db, actif: cfg.logos === 'oui', log, ...optionsLogos });
   const api = creerApi({ socle, db, logos, cfg });
 
@@ -66,7 +72,9 @@ export async function demarrer(env = process.env, { log = CONSOLE, logos: option
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename)) {
+// Le processus du conteneur supervise le service et le relance quand
+// l'assistant a posé de nouveaux réglages.
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename) && !superviser()) {
   process.umask(0o077);
   const r = await demarrer().catch(e => { console.error(e.message); process.exit(1); });
   const fin = async sig => { console.log(`${sig} reçu, arrêt propre`); await r.arreter(); process.exit(0); };
