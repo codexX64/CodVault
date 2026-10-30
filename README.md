@@ -1,3 +1,12 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="medias/logo-sombre.svg">
+    <img src="medias/logo-clair.svg" alt="CODVAULT" height="56">
+  </picture>
+</p>
+
+<p align="center"><img src="medias/affiche.png" alt="Affiche de CODVAULT" width="100%"></p>
+
 # CODVAULT
 
 Gestionnaire de mots de passe sous le Hub. Chaque compte a son coffre :
@@ -10,6 +19,26 @@ Le chiffrement se fait dans le navigateur. Le serveur ne reçoit que des blocs
 chiffrés et ne peut lire ni les mots de passe, ni les notes, ni les secrets
 A2F, ni les favoris. Ce qu'il voit malgré tout est écrit dans
 [web/confidentialite.txt](web/confidentialite.txt).
+
+## Aperçu
+
+| <img src="medias/capture-1.png" alt="Le coffre"> |
+|:--:|
+| Le coffre |
+
+| <img src="medias/capture-2.png" alt="Le générateur de mots de passe"> |
+|:--:|
+| Le générateur de mots de passe |
+
+| <img src="medias/capture-3.png" alt="Importer depuis un autre gestionnaire"> |
+|:--:|
+| Importer depuis un autre gestionnaire |
+
+| <img src="medias/capture-4.png" alt="Coffre et clés du compte"> |
+|:--:|
+| Coffre et clés du compte |
+
+Quatre gammes d’interface au choix — SOMA, Console, Exploitation, Lavande — en clair ou en sombre, de 360 à 1920 px de large.
 
 ## Le chiffrement
 
@@ -89,6 +118,33 @@ s'affiche dans `docker compose logs codvault`.
 
 CODVAULT doit être servi en HTTPS, ou ouvert sur `localhost` : hors d'un
 contexte sûr, le navigateur ne donne ni WebCrypto ni les clés d'accès.
+
+## Première configuration et mises à jour
+
+Au premier démarrage, ouvre l’interface : tu crées le compte administrateur avec
+le jeton d’installation (affiché dans les journaux du conteneur, ou transmis par
+le Hub), tu inscris tes facteurs de connexion, puis l’**assistant de
+configuration** passe les réglages de CODVAULT groupe par groupe. Il est
+obligatoire : CODVAULT reste fermé tant qu’il n’est pas terminé. Chaque valeur
+proposée convient pour commencer.
+
+<p align="center"><img src="medias/assistant.png" alt="Assistant de configuration" width="70%"></p>
+
+Réglages demandés : logos des sites, éléments par compte au plus, taille d’un coffre au plus (Mio) ; plus ceux de
+tous les services (adresse publique, relais de confiance, gamme de
+l’interface, contact de sécurité, courriels d’alerte).
+
+Après une mise à jour qui apporte un réglage nouveau, l’assistant revient au
+passage suivant d’un administrateur et ne demande **que ce réglage-là**. Une
+mise à jour sans réglage nouveau ne demande rien : une fenêtre « Quoi de neuf »
+résume ce qu’elle apporte, une fois par compte, et se ferme d’un clic
+(`nouveautes.json`).
+
+Tout reste modifiable dans **Comptes → Réglages du service**. Une variable
+posée dans l’environnement l’emporte toujours et n’est pas demandée. CODVAULT
+redémarre seul pour appliquer un changement (le processus du conteneur le
+supervise). Les valeurs vivent dans `reglages.json`, dans le volume de
+données ; les secrets y sont scellés par la clé maîtresse.
 
 ## Plafonds
 
