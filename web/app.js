@@ -10,6 +10,20 @@ import {
 } from '/socle/compte.js';
 import * as C from '/crypto.js';
 
+// Le logo de CODVAULT, dans la couleur du texte : la marque de la barre et de
+// l'écran de connexion (même tracé que l'icône de l'onglet).
+const LOGO_NS = 'http://www.w3.org/2000/svg';
+function logoMarque(taille = 16) {
+  const s = document.createElementNS(LOGO_NS, 'svg');
+  s.setAttribute('width', taille); s.setAttribute('height', taille);
+  s.setAttribute('viewBox', '-1.91 -1.91 259.83 259.83'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('class', 'logo-marque');
+  const p = document.createElementNS(LOGO_NS, 'path');
+  p.setAttribute('d', 'M38.07 122.61A59.28 59.28 0 0 1 102.73 121.47L199.19 25.01L244 69.82L230.99 82.83L204.97 56.81L194.86 66.93L209.31 81.38L194.86 95.84L180.4 81.38L168.84 92.95L190.52 114.63L174.62 130.53L152.94 108.84L121.52 140.26A59.28 59.28 0 1 1 22.17 138.51L46.3 162.64A26.57 26.57 0 1 0 62.2 146.74Z');
+  p.setAttribute('fill', 'currentColor');
+  s.append(p);
+  return s;
+}
+
 appliquerTheme();
 const SERVICE = 'CODVAULT';
 const api = new Api({ surDeconnexion: () => location.reload() });
@@ -34,12 +48,12 @@ ajouterPictos({
 if (!globalThis.isSecureContext || !globalThis.crypto?.subtle) {
   document.body.replaceChildren(h('div', { class: 'porte' }, h('div', { class: 'halos', 'aria-hidden': 'true' }, h('i'), h('i')),
     h('div', { class: 'wiz' },
-      h('div', { class: 'whead' }, h('div', { class: 'brand' }, h('div', { class: 'g' }, icone('coffre', 18)), h('div', {}, h('b', { text: SERVICE })))),
+      h('div', { class: 'whead' }, h('div', { class: 'brand' }, h('div', { class: 'g' }, logoMarque(20)), h('div', {}, h('b', { text: SERVICE })))),
       h('div', { class: 'wbody' }, h('h1', { text: 'HTTPS demandé' }),
         h('p', { class: 'sub', text: 'Le navigateur ne chiffre qu’en HTTPS, ou sur localhost : ouvre CODVAULT par son adresse en https://, celle du relais ou celle que le Hub publie.' })))));
   await new Promise(() => {});
 }
-const etatPorte = await porte({ api, service: SERVICE, sousTitre: 'coffre de mots de passe' });
+const etatPorte = await porte({ api, service: SERVICE, marque: logoMarque(20), sousTitre: 'coffre de mots de passe' });
 const moi = etatPorte.session.compte;
 const admin = moi.role === 'admin';
 const membre = admin || moi.role === 'membre';
@@ -59,7 +73,7 @@ let prefs = { favoris: [], verrou: 10, presse: 30 };
 
 function plein(titre, sous, corps, pied = []) {
   const wiz = h('div', { class: 'wiz' },
-    h('div', { class: 'whead' }, h('div', { class: 'brand' }, h('div', { class: 'g' }, icone('coffre', 18)),
+    h('div', { class: 'whead' }, h('div', { class: 'brand' }, h('div', { class: 'g' }, logoMarque(20)),
       h('div', {}, h('b', { text: SERVICE }), h('span', { text: moi.identifiant })), h('div', { class: 'th' }, basculeTheme()))),
     h('div', { class: 'wbody' }, h('h1', { text: titre }), sous ? h('p', { class: 'sub', text: sous }) : null, corps),
     h('div', { class: 'wfoot' }, pied));
@@ -283,7 +297,7 @@ function coquille() {
   stage = h('div', { class: 'stage' });
   const app = h('div', { class: 'app' },
     h('nav', { class: 'rail', 'aria-label': 'Navigation' },
-      h('div', { class: 'mark' }, h('div', { class: 'g' }, icone('coffre', 15)), h('b', { text: SERVICE })),
+      h('div', { class: 'mark' }, h('div', { class: 'g' }, logoMarque(16)), h('b', { text: SERVICE })),
       groupe('Coffre', ['coffre', 'favoris', 'notes', 'partages']),
       groupe('Outils', ['generateur', 'codes', 'importer']),
       groupe('Compte', ['cles', 'extension', 'securite', 'comptes']),
