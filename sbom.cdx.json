@@ -53,7 +53,7 @@
     {
       "type": "library",
       "name": "socle",
-      "version": "6f2c864",
+      "version": "5c39e49",
       "description": "socle commun embarqué, empreintes dans socle/EMPREINTES"
     }
   ]
