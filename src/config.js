@@ -4,7 +4,7 @@
 // complète des erreurs.
 import { lireConfig } from '../socle/src/index.js';
 
-export const VERSION = '2.0.2';
+export const VERSION = '2.0.3';
 
 export function lireConfigCodvault(env = process.env) {
   return lireConfig({
