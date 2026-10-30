@@ -4,7 +4,7 @@
 // complète des erreurs.
 import { lireConfig } from '../socle/src/index.js';
 
-export const VERSION = '2.0.3';
+export const VERSION = '2.1.0';
 
 export const SPEC_CODVAULT = {
   port: { env: 'PORT', type: 'entier', min: 0, max: 65535, defaut: 8175 },
