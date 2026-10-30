@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "codvault",
   "name": "CODVAULT",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Mots de passe à connaissance nulle : coffre chiffré dans le navigateur, codes A2F, notes, import, partage chiffré entre comptes, extension de remplissage.",
   "icon": "key",
   "repository": "https://github.com/CodexX64/codvault",
@@ -47,7 +47,7 @@
       "key": "IMAGE_TAG",
       "label": "Version de l'image",
       "type": "string",
-      "default": "2.0.1",
+      "default": "2.0.2",
       "help": "Étiquette de l'image codvault.",
       "advanced": true
     },
